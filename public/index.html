@@ -1160,6 +1160,15 @@
       })
       .catch(() => {});
 
+    // MiroTalk-inspired audio unlock on user interaction (bypasses iOS/Android autoplay blocks)
+    function unlockAudio() {
+      if (remoteAudio && remoteAudio.paused && remoteAudio.srcObject) {
+        remoteAudio.play().catch(() => {});
+      }
+    }
+    document.addEventListener('click', unlockAudio, { passive: true });
+    document.addEventListener('touchstart', unlockAudio, { passive: true });
+
     function getOrCreateRemoteStream() {
       if (!remoteStream) {
         remoteStream = new MediaStream();
@@ -1911,9 +1920,15 @@
       }
 
       try {
+        const audioConstraints = {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        };
+
         const constraints = type === 'video'
-          ? { video: { facingMode: 'user' }, audio: true }
-          : { video: false, audio: true };
+          ? { video: { facingMode: 'user' }, audio: audioConstraints }
+          : { video: false, audio: audioConstraints };
 
         localStream = await navigator.mediaDevices.getUserMedia(constraints);
         if (type === 'video') {
@@ -2015,9 +2030,15 @@
       }
 
       try {
+        const audioConstraints = {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        };
+
         const constraints = currentCallType === 'video'
-          ? { video: { facingMode: 'user' }, audio: true }
-          : { video: false, audio: true };
+          ? { video: { facingMode: 'user' }, audio: audioConstraints }
+          : { video: false, audio: audioConstraints };
 
         localStream = await navigator.mediaDevices.getUserMedia(constraints);
         if (currentCallType === 'video') {
