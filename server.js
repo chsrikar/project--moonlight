@@ -6,7 +6,7 @@
  * 1. Zero-Log & In-Memory: No database, no disk writes, no logging of IP addresses or messages.
  * 2. Zero-Knowledge Relay: The server NEVER receives the raw passcode or the E2EE AES key.
  *    It routes opaque encrypted ciphertext blobs and cannot inspect contents.
- * 3. Tor Latency Resilient: WebSocket heartbeat tuned for Tor circuit hops (45-60s intervals).
+ * 3. Tor & Cross-Network Resilient: Heartbeat tuned for WAN/Tor latency (45-60s intervals).
  * 4. Passcode-Gated Sockets: Unauthenticated sockets are closed with code 4401.
  */
 
@@ -18,6 +18,7 @@ const { WebSocketServer, WebSocket } = require('ws');
 
 // Configuration
 const PORT = process.env.PORT || 3000;
+const HOST = process.env.HOST || '0.0.0.0';
 const ROOM_PASSCODE = process.env.ROOM_PASSCODE || 'moonlight-alpha';
 
 // Pre-compute expected SHA-256 auth hash for constant-time comparison
@@ -242,10 +243,10 @@ wss.on('connection', (ws) => {
 });
 
 /**
- * Tor-Tolerant Heartbeat Mechanism
- * Tor circuits route through 3 onion relays, creating 1s - 4s latency spikes and buffering.
- * - Interval: 50 seconds (relaxed to avoid false positives during circuit renewal)
- * - Missed Ping Threshold: 2 consecutive missed intervals (~100 seconds grace period)
+ * Tor & WAN Tolerant Heartbeat Mechanism
+ * Tuned for multi-hop internet latency spikes (Render reverse proxies + Tor circuits).
+ * - Interval: 50 seconds (keeps reverse-proxy TCP connections open)
+ * - Missed Ping Threshold: 2 consecutive missed intervals (~100s grace period)
  */
 const HEARTBEAT_INTERVAL_MS = 50000;
 const MAX_MISSED_PINGS = 2;
@@ -271,8 +272,8 @@ server.on('close', () => {
   clearInterval(heartbeatTimer);
 });
 
-// Start Server (Zero console logging of IPs or sensitive info)
-server.listen(PORT, () => {
-  process.stdout.write(`[MOONLIGHT] Node.js Zero-Trace Server active on port ${PORT}\n`);
-  process.stdout.write(`[MOONLIGHT] Tor-Tolerant Heartbeat: ${HEARTBEAT_INTERVAL_MS}ms | Payload limit: 50MB\n`);
+// Start Server on all interfaces (0.0.0.0) for local network, container, and reverse proxy access
+server.listen(PORT, HOST, () => {
+  process.stdout.write(`[MOONLIGHT] Node.js Zero-Trace Server active on http://${HOST}:${PORT}\n`);
+  process.stdout.write(`[MOONLIGHT] WAN/Tor-Tolerant Heartbeat: ${HEARTBEAT_INTERVAL_MS}ms | Payload limit: 50MB\n`);
 });
