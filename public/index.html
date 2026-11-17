@@ -1127,21 +1127,38 @@
     let remoteStream = null;
     let iceCandidateQueue = [];
 
-    // Redundant High-Grade Multi-Port STUN Servers
+    // STUN + TURN ICE Server config
+    // TURN is REQUIRED for symmetric NAT / mobile CGNAT traversal
     let RTC_CONFIG = {
       iceServers: [
+        // Google STUN (direct peer-to-peer when NAT is permissive)
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
         { urls: 'stun:stun2.l.google.com:19302' },
-        { urls: 'stun:stun3.l.google.com:19302' },
-        { urls: 'stun:stun4.l.google.com:19302' },
         { urls: 'stun:stun.cloudflare.com:3478' },
-        { urls: 'stun:stun.sipgate.net:3478' },
-        { urls: 'stun:stun.relay.metered.ca:80' }
-      ]
+        // OpenRelay TURN – public free-tier relay for symmetric NAT / mobile networks
+        // These handle the "Connection Failed (Symmetric NAT/UDP blocked)" state
+        { urls: 'stun:stun.relay.metered.ca:80' },
+        {
+          urls: 'turn:standard.relay.metered.ca:80',
+          username: 'openrelayproject',
+          credential: 'openrelayproject'
+        },
+        {
+          urls: 'turn:standard.relay.metered.ca:443',
+          username: 'openrelayproject',
+          credential: 'openrelayproject'
+        },
+        {
+          urls: 'turn:standard.relay.metered.ca:443?transport=tcp',
+          username: 'openrelayproject',
+          credential: 'openrelayproject'
+        }
+      ],
+      iceTransportPolicy: 'all'
     };
 
-    // Dynamically retrieve configured ICE / TURN servers from server if available
+    // Override ICE config with server-configured TURN credentials if available
     fetch('/api/ice-servers')
       .then(res => res.json())
       .then(data => {
@@ -1514,7 +1531,7 @@
         }
         socket.send(JSON.stringify(encryptedEnvelope));
 
-        if (dataObj.type !== 'webrtc_signal') {
+        if (dataObj.type !== 'webrtc_signal' && dataObj.type !== 'call_ended') {
           renderMessage(dataObj, true);
         }
       } catch (err) {
@@ -1527,6 +1544,12 @@
         renderMessage(data, false);
       } else if (data.type === 'webrtc_signal') {
         handleWebRTCSignal(data, fromPeerId);
+      } else if (data.type === 'call_ended') {
+        // Remote peer hung up — terminate on our end too
+        if (callModal.style.display !== 'none') {
+          terminateVideoCall(false); // false = don't re-send call_ended (avoid echo)
+          appendSystemMessage(`📵 ${data.sender || 'Peer'} ended the call.`);
+        }
       }
     }
 
@@ -1784,7 +1807,7 @@
       peerConnection.ontrack = (event) => {
         const stream = getOrCreateRemoteStream();
 
-        // 1. Unified Plan track binding: ensure incoming tracks are attached to the stream
+        // Collect all incoming tracks (Unified Plan: tracks may arrive without event.streams)
         if (event.track) {
           if (!stream.getTracks().some(t => t.id === event.track.id)) {
             stream.addTrack(event.track);
@@ -1792,48 +1815,32 @@
         }
         if (event.streams && event.streams[0]) {
           event.streams[0].getTracks().forEach(t => {
-            if (!stream.getTracks().some(existing => existing.id === t.id)) {
+            if (!stream.getTracks().some(x => x.id === t.id)) {
               stream.addTrack(t);
             }
           });
         }
 
-        // 2. Element attachment & browser autoplay trigger
+        // Force-attach by nulling first (guarantees browser treats it as a fresh load)
+        // This is the key fix for "connected but black screen / silent audio"
+        const attachAndPlay = (el, s) => {
+          el.srcObject = null;
+          el.srcObject = s;
+          el.muted = false;
+          el.volume = 1.0;
+          const p = el.play();
+          if (p !== undefined) p.catch(e => {
+            // Autoplay blocked → try unmuted programmatic play one more time after tiny delay
+            setTimeout(() => el.play().catch(() => {}), 300);
+          });
+        };
+
         if (currentCallType === 'video') {
-          if (remoteVideo.srcObject !== stream) {
-            remoteVideo.srcObject = stream;
-          }
-          remoteVideo.muted = false;
-          remoteVideo.volume = 1.0;
-          const vPlay = remoteVideo.play();
-          if (vPlay !== undefined) {
-            vPlay.catch(e => console.warn('remoteVideo.play() note:', e));
-          }
-
-          // Ensure audio track also plays through remoteAudio element for maximum mobile compatibility
-          if (remoteAudio.srcObject !== stream) {
-            remoteAudio.srcObject = stream;
-          }
-          remoteAudio.muted = false;
-          remoteAudio.volume = 1.0;
-          const aPlay = remoteAudio.play();
-          if (aPlay !== undefined) {
-            aPlay.catch(e => console.warn('remoteAudio.play() note:', e));
-          }
-
+          attachAndPlay(remoteVideo, stream);
+          attachAndPlay(remoteAudio, stream);  // dual-attach for max mobile compat
           remoteVideoLabel.textContent = 'Remote Peer (Live)';
         } else {
-          // Dedicated Voice Call
-          if (remoteAudio.srcObject !== stream) {
-            remoteAudio.srcObject = stream;
-          }
-          remoteAudio.muted = false;
-          remoteAudio.volume = 1.0;
-          const aPlay = remoteAudio.play();
-          if (aPlay !== undefined) {
-            aPlay.catch(e => console.warn('remoteAudio.play() note:', e));
-          }
-
+          attachAndPlay(remoteAudio, stream);
           audioCallStatus.textContent = 'Connected (Encrypted Voice)';
         }
         startCallTimer();
@@ -2073,7 +2080,12 @@
       activeCallPeerId = null;
     }
 
-    function terminateVideoCall() {
+    function terminateVideoCall(notifyPeer = true) {
+      // Notify the remote peer so they hang up too
+      if (notifyPeer && activeCallPeerId && socket && socket.readyState === WebSocket.OPEN) {
+        sendEncryptedMessage({ type: 'call_ended' }, activeCallPeerId).catch(() => {});
+      }
+
       clearInterval(callTimerInterval);
       callTimerInterval = null;
       if (localStream) {
