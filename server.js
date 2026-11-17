@@ -6,8 +6,9 @@
  * 1. Zero-Log & In-Memory: No database, no disk writes, no logging of IP addresses or messages.
  * 2. Zero-Knowledge Relay: The server NEVER receives the raw passcode or the E2EE AES key.
  *    It routes opaque encrypted ciphertext blobs and cannot inspect contents.
- * 3. Ghost Pruning: Stale sockets from browser reloads/network shifts are immediately pruned.
- * 4. Target Addressability: WebRTC signaling can be addressed 1-to-1 so calls never collide.
+ * 3. Mobile & Tor Resilient: Heartbeat tuned with 90s grace period so camera/mic permission
+ *    prompts on mobile never drop the WebSocket.
+ * 4. Target Addressability: Audio and Video calls route 1-to-1 without interference.
  */
 
 const http = require('http');
@@ -113,7 +114,7 @@ function broadcastExcept(senderWs, payloadString) {
     if (client.ws !== senderWs && client.ws.readyState === WebSocket.OPEN) {
       try {
         client.ws.send(payloadString);
-      } catch (_) { }
+      } catch (_) {}
     }
   }
 }
@@ -133,7 +134,7 @@ function broadcastPeerRoster() {
     if (client.ws.readyState === WebSocket.OPEN) {
       try {
         client.ws.send(updateMsg);
-      } catch (_) { }
+      } catch (_) {}
     }
   }
 }
@@ -144,16 +145,16 @@ wss.on('connection', (ws) => {
   ws.clientId = null;
   ws.missedPings = 0;
 
-  // Strict Passcode Gate: Socket MUST authenticate within 10 seconds or be closed
+  // Sockets have 15 seconds to authenticate
   const authTimeout = setTimeout(() => {
     if (!ws.isAuthenticated) {
       try {
         ws.send(JSON.stringify({ type: 'auth_error', message: 'Authentication timeout' }));
-      } catch (_) { }
+      } catch (_) {}
       ws.close(4408, 'Auth Timeout');
       setTimeout(() => ws.terminate(), 500);
     }
-  }, 10000);
+  }, 15000);
 
   ws.on('pong', () => {
     ws.missedPings = 0;
@@ -173,7 +174,7 @@ wss.on('connection', (ws) => {
       return;
     }
 
-    // 1. Authentication Handshake with Session Deduplication
+    // 1. Authentication Handshake with Tab-Level Deduplication
     if (!ws.isAuthenticated) {
       if (message.type === 'auth' && typeof message.token === 'string') {
         const token = message.token;
@@ -200,16 +201,14 @@ wss.on('connection', (ws) => {
             : 'Anon-' + clientId.slice(5, 9);
           const sessionId = typeof message.sessionId === 'string' ? message.sessionId : null;
 
-          // Ghost Pruning: If same browser tab refreshed with same sessionId or alias, prune the old stale socket immediately
-          if (sessionId || clientAlias) {
+          // Deduplicate ONLY by exact sessionId (same browser tab reloading)
+          // Never prune by alias so two users with the same or default name aren't disconnected
+          if (sessionId) {
             for (const [existingId, existingClient] of clients.entries()) {
-              if (
-                (sessionId && existingClient.sessionId === sessionId) ||
-                (clientAlias && existingClient.alias === clientAlias)
-              ) {
+              if (existingClient.sessionId === sessionId && existingClient.ws !== ws) {
                 try {
                   existingClient.ws.terminate();
-                } catch (_) { }
+                } catch (_) {}
                 clients.delete(existingId);
               }
             }
@@ -223,7 +222,7 @@ wss.on('connection', (ws) => {
             sessionId: sessionId
           });
 
-          // Send welcome packet with their assigned ID and current peer roster
+          // Send welcome packet with client ID and peer list
           ws.send(JSON.stringify({
             type: 'auth_success',
             myId: clientId,
@@ -232,7 +231,7 @@ wss.on('connection', (ws) => {
             peers: getPeerList()
           }));
 
-          // Announce peer entry to others
+          // Notify others of arrival
           broadcastExcept(ws, JSON.stringify({
             type: 'peer_joined',
             peer: { id: clientId, alias: clientAlias }
@@ -247,7 +246,7 @@ wss.on('connection', (ws) => {
       clearTimeout(authTimeout);
       try {
         ws.send(JSON.stringify({ type: 'auth_error', message: 'Invalid room passcode' }));
-      } catch (_) { }
+      } catch (_) {}
       ws.close(4401, 'Unauthorized');
       setTimeout(() => {
         if (ws.readyState !== WebSocket.CLOSED) {
@@ -260,7 +259,7 @@ wss.on('connection', (ws) => {
     // 2. Authenticated Relay Routing
     if (message.type === 'encrypted') {
       if (typeof message.iv === 'string' && typeof message.ciphertext === 'string') {
-        // Targeted 1-to-1 message (WebRTC offer, answer, candidate)
+        // Targeted 1-to-1 message (WebRTC signaling for Audio/Video call)
         if (message.targetId && typeof message.targetId === 'string') {
           const targetClient = clients.get(message.targetId);
           if (targetClient && targetClient.ws.readyState === WebSocket.OPEN) {
@@ -272,7 +271,7 @@ wss.on('connection', (ws) => {
                 iv: message.iv,
                 ciphertext: message.ciphertext
               }));
-            } catch (_) { }
+            } catch (_) {}
           }
         } else {
           // Room Broadcast (Text, Images, Audio notes)
@@ -293,7 +292,7 @@ wss.on('connection', (ws) => {
       const client = clients.get(ws.clientId);
       clients.delete(ws.clientId);
 
-      // Announce exit to others
+      // Notify others of exit
       broadcastExcept(ws, JSON.stringify({
         type: 'peer_left',
         peerId: client.id,
@@ -312,17 +311,21 @@ wss.on('connection', (ws) => {
 });
 
 /**
- * Fast Ghost-Socket Cleanup Heartbeat
- * Runs every 25 seconds; terminates dead TCP sockets after 1 missed ping
+ * Mobile-Tolerant Heartbeat Mechanism
+ * Interval: 30 seconds.
+ * Threshold: 3 consecutive misses (~90 seconds grace period).
+ * This prevents mobile browsers from being disconnected when the user is viewing
+ * a camera/mic permission prompt or when the app is briefly backgrounded.
  */
-const HEARTBEAT_INTERVAL_MS = 25000;
+const HEARTBEAT_INTERVAL_MS = 30000;
+const MAX_MISSED_PINGS = 3;
 
 const heartbeatTimer = setInterval(() => {
   for (const [id, client] of clients.entries()) {
-    if (client.ws.missedPings >= 1) {
+    if (client.ws.missedPings >= MAX_MISSED_PINGS) {
       try {
         client.ws.terminate();
-      } catch (_) { }
+      } catch (_) {}
       clients.delete(id);
       broadcastPeerRoster();
       continue;
@@ -332,7 +335,7 @@ const heartbeatTimer = setInterval(() => {
     if (client.ws.readyState === WebSocket.OPEN) {
       try {
         client.ws.ping();
-      } catch (_) { }
+      } catch (_) {}
     }
   }
 }, HEARTBEAT_INTERVAL_MS);
@@ -341,8 +344,8 @@ server.on('close', () => {
   clearInterval(heartbeatTimer);
 });
 
-// Start Server on all interfaces (0.0.0.0)
+// Start Server on 0.0.0.0
 server.listen(PORT, HOST, () => {
   process.stdout.write(`[MOONLIGHT] Zero-Trace Server active on http://${HOST}:${PORT}\n`);
-  process.stdout.write(`[MOONLIGHT] Active Ghost Pruning: ${HEARTBEAT_INTERVAL_MS}ms | Payload limit: 50MB\n`);
+  process.stdout.write(`[MOONLIGHT] Heartbeat Interval: ${HEARTBEAT_INTERVAL_MS}ms (Grace: ${HEARTBEAT_INTERVAL_MS * MAX_MISSED_PINGS / 1000}s)\n`);
 });

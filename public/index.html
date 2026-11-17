@@ -86,8 +86,8 @@
     }
 
     .incoming-icon {
-      width: 32px;
-      height: 32px;
+      width: 34px;
+      height: 34px;
       border-radius: 50%;
       background: rgba(255, 255, 255, 0.2);
       display: flex;
@@ -112,7 +112,7 @@
       color: #000;
       border: none;
       border-radius: 6px;
-      padding: 6px 14px;
+      padding: 8px 14px;
       font-size: 12px;
       font-weight: 700;
       cursor: pointer;
@@ -123,13 +123,13 @@
       color: #fff;
       border: none;
       border-radius: 6px;
-      padding: 6px 12px;
+      padding: 8px 12px;
       font-size: 12px;
       font-weight: 600;
       cursor: pointer;
     }
 
-    /* Peer Picker Modal for multi-user rooms */
+    /* Peer Picker Modal for multi-user calls */
     #peer-picker-modal {
       position: fixed;
       inset: 0;
@@ -148,7 +148,7 @@
       border-radius: 12px;
       padding: 20px;
       width: 100%;
-      max-width: 360px;
+      max-width: 380px;
     }
 
     .peer-picker-title {
@@ -178,15 +178,31 @@
       color: var(--accent-cyan);
     }
 
-    .btn-call-peer {
-      background: var(--accent-emerald);
-      color: #000;
+    .peer-item-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .btn-peer-call {
       border: none;
-      padding: 6px 12px;
+      padding: 6px 10px;
       border-radius: 6px;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 700;
       cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .btn-peer-audio {
+      background: #0284c7;
+      color: #fff;
+    }
+
+    .btn-peer-video {
+      background: var(--accent-emerald);
+      color: #000;
     }
 
     /* Auth Gateway Overlay */
@@ -418,7 +434,7 @@
     .header-actions {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
       flex-shrink: 0;
     }
 
@@ -427,19 +443,26 @@
       border: 1px solid var(--border-subtle);
       color: var(--text-muted);
       border-radius: 8px;
-      padding: 7px 11px;
+      padding: 7px 10px;
       font-size: 12px;
       cursor: pointer;
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
       transition: all 0.2s;
       user-select: none;
     }
 
-    .btn-header:hover {
-      background: var(--border-subtle);
-      color: #fff;
+    .btn-header:hover { background: var(--border-subtle); color: #fff; }
+
+    .btn-audio-call {
+      color: var(--accent-cyan);
+      border-color: rgba(6, 182, 212, 0.3);
+    }
+
+    .btn-video-call {
+      color: var(--accent-emerald);
+      border-color: rgba(16, 185, 129, 0.3);
     }
 
     .btn-panic {
@@ -632,12 +655,12 @@
 
     #send-btn:hover { opacity: 0.9; }
 
-    /* Video Call UI Overlay */
+    /* Call UI Modal (Audio & Video) */
     #call-modal {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.94);
-      backdrop-filter: blur(10px);
+      background: rgba(7, 9, 14, 0.97);
+      backdrop-filter: blur(12px);
       z-index: 500;
       display: none;
       flex-direction: column;
@@ -646,6 +669,7 @@
       padding: 16px;
     }
 
+    /* Video Layout */
     .video-grid {
       display: flex;
       gap: 16px;
@@ -683,10 +707,60 @@
       backdrop-filter: blur(4px);
     }
 
+    /* Audio-Only Layout */
+    #audio-call-view {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    .audio-avatar {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #0284c7, #0d9488);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+      box-shadow: 0 0 0 0 rgba(6, 182, 212, 0.6);
+      animation: audioPulse 2s infinite;
+    }
+
+    @keyframes audioPulse {
+      0% { box-shadow: 0 0 0 0 rgba(6, 182, 212, 0.6); }
+      70% { box-shadow: 0 0 0 24px rgba(6, 182, 212, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(6, 182, 212, 0); }
+    }
+
+    .audio-caller-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+
+    .audio-call-status {
+      font-size: 13px;
+      color: var(--accent-cyan);
+      margin-bottom: 8px;
+    }
+
+    .call-timer {
+      font-size: 13px;
+      color: var(--text-dim);
+      font-family: monospace;
+      letter-spacing: 1px;
+    }
+
     .call-controls {
-      margin-top: 20px;
+      margin-top: 24px;
       display: flex;
       gap: 16px;
+      align-items: center;
     }
 
     .call-btn {
@@ -700,6 +774,17 @@
       gap: 8px;
       border: none;
       user-select: none;
+    }
+
+    .call-btn.mute {
+      background: var(--bg-surface-elevated);
+      color: #fff;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .call-btn.mute.muted {
+      background: #475569;
+      color: #f87171;
     }
 
     .call-btn.end {
@@ -738,18 +823,18 @@
       .channel-name { font-size: 13px; gap: 4px; }
       .channel-sub { font-size: 10px; }
       .badge-label, .btn-label { display: none; }
-      .btn-header { padding: 6px 9px; }
+      .btn-header { padding: 6px 8px; }
 
       .header-badges {
         display: flex;
         overflow-x: auto;
         white-space: nowrap;
         scrollbar-width: none;
-        gap: 5px;
-        max-width: 140px;
+        gap: 4px;
+        max-width: 110px;
       }
       .header-badges::-webkit-scrollbar { display: none; }
-      .badge { font-size: 10px; padding: 2px 7px; flex-shrink: 0; }
+      .badge { font-size: 10px; padding: 2px 6px; flex-shrink: 0; }
 
       #messages-viewport { padding: 12px 10px; gap: 10px; }
       .msg-wrapper { max-width: 88%; }
@@ -776,9 +861,9 @@
       .video-grid {
         position: relative;
         width: 100%;
-        height: 75vh;
-        height: 75dvh;
-        max-height: 580px;
+        height: 72vh;
+        height: 72dvh;
+        max-height: 560px;
         display: block;
       }
 
@@ -800,21 +885,24 @@
         border-radius: 12px;
       }
 
-      .call-controls { margin-top: 16px; }
-      .call-btn { padding: 10px 22px; font-size: 13px; }
+      .call-controls { margin-top: 16px; gap: 10px; }
+      .call-btn { padding: 10px 16px; font-size: 13px; }
     }
   </style>
 </head>
 <body>
 
+  <!-- Hidden Remote Audio Element for reliable sound in audio and video calls -->
+  <audio id="remote-audio" autoplay></audio>
+
   <!-- In-Page Non-blocking Incoming Call Banner -->
   <div id="incoming-call-banner">
     <div class="incoming-info">
-      <div class="incoming-icon">
-        <svg class="icon" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+      <div class="incoming-icon" id="incoming-call-icon">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
       </div>
       <div>
-        <div style="font-weight: 700;">Incoming Video Call</div>
+        <div style="font-weight: 700;" id="incoming-call-title">Incoming Call</div>
         <div style="font-size: 11px; opacity: 0.9;" id="incoming-caller-text">Peer is calling...</div>
       </div>
     </div>
@@ -828,7 +916,7 @@
   <div id="peer-picker-modal">
     <div class="peer-picker-card">
       <div class="peer-picker-title">
-        <span>Select Peer to Call</span>
+        <span id="picker-modal-heading">Select Peer</span>
         <button onclick="closePeerPicker()" style="background: none; border: none; color: #fff; cursor: pointer; font-size: 16px;">✕</button>
       </div>
       <div id="peer-picker-list"></div>
@@ -887,27 +975,31 @@
     </div>
 
     <div class="header-badges">
-      <!-- Status Badge -->
       <span class="badge badge-status" id="connection-badge">
         <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
         <span id="conn-text">Disconnected</span>
       </span>
 
-      <!-- WebRTC Policy Status -->
       <span class="badge badge-tor" id="webrtc-badge">
         <svg class="icon" viewBox="0 0 24 24"><path d="M1 1l22 22"></path><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="M23 7l-7 5 7 5V7z"></path></svg>
         <span id="webrtc-badge-text">Detecting WebRTC...</span>
       </span>
 
-      <!-- Active Peer Count with click to view -->
-      <span class="badge badge-e2ee" id="peer-badge" onclick="openPeerPicker()" style="cursor: pointer;" title="Click to view peers in room">
+      <span class="badge badge-e2ee" id="peer-badge" onclick="openPeerPicker('view')" style="cursor: pointer;" title="Click to view peers in room">
         <svg class="icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
         <span id="peer-count">1 peer</span>
       </span>
     </div>
 
     <div class="header-actions">
-      <button class="btn-header" id="btn-video-call" onclick="handleVideoCallButton()" title="Start Encrypted WebRTC Video Call">
+      <!-- Audio Call Button -->
+      <button class="btn-header btn-audio-call" id="btn-audio-call" onclick="handleCallButton('audio')" title="Start Encrypted Voice Call">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+        <span class="btn-label">Audio</span>
+      </button>
+
+      <!-- Video Call Button -->
+      <button class="btn-header btn-video-call" id="btn-video-call" onclick="handleCallButton('video')" title="Start Encrypted Video Call">
         <svg class="icon" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
         <span class="btn-label">Video</span>
       </button>
@@ -953,22 +1045,40 @@
     <img id="lightbox-img" src="" alt="Encrypted attachment">
   </div>
 
-  <!-- WEBRTC VIDEO CALL MODAL -->
+  <!-- CALL MODAL (AUDIO & VIDEO) -->
   <div id="call-modal">
-    <div class="video-grid">
+    <!-- Video Calling View -->
+    <div class="video-grid" id="video-call-grid">
       <div class="video-card">
         <video id="local-video" autoplay playsinline muted></video>
         <div class="video-label">You</div>
       </div>
       <div class="video-card">
         <video id="remote-video" autoplay playsinline></video>
-        <div class="video-label" id="remote-video-label">Awaiting Peer Stream...</div>
+        <div class="video-label" id="remote-video-label">Connecting...</div>
       </div>
     </div>
+
+    <!-- Audio-Only Calling View -->
+    <div id="audio-call-view">
+      <div class="audio-avatar">
+        <svg class="icon" style="width: 40px; height: 40px; color: #fff;" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+      </div>
+      <div class="audio-caller-title" id="audio-caller-name">Voice Call</div>
+      <div class="audio-call-status" id="audio-call-status">Connecting...</div>
+      <div class="call-timer" id="audio-call-timer">00:00</div>
+    </div>
+
+    <!-- Call Controls -->
     <div class="call-controls">
+      <button class="call-btn mute" id="btn-toggle-mic" onclick="toggleCallMicrophone()">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+        <span id="btn-mic-text">Mute</span>
+      </button>
+
       <button class="call-btn end" onclick="terminateVideoCall()">
-        <svg class="icon" viewBox="0 0 24 24"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-6-6 19.8 19.8 0 0 1-3.11-8.69 2 2 0 0 1 2-2.18h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.09 9.91"></path><line x1="23" y1="1" x2="1" y2="23"></line></svg>
-        End Call
+        <svg class="icon" viewBox="0 0 24 24"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.09 9.91"></path><line x1="23" y1="1" x2="1" y2="23"></line></svg>
+        <span>End Call</span>
       </button>
     </div>
   </div>
@@ -977,10 +1087,9 @@
     /**
      * MOONLIGHT CLIENT CORE
      * Web Crypto PBKDF2 + AES-256-GCM Implementation
-     * 1-to-1 Targeted Signaling, Ghost Pruning & In-App Call Handshake
+     * 1-to-1 Audio & Video Calling with Targeted Signaling & Robust NAT Traversal
      */
 
-    // Persistent Session ID (Prunes ghost sockets on browser reload)
     let mySessionId = sessionStorage.getItem('moonlight_session_id');
     if (!mySessionId) {
       mySessionId = 'sess_' + Math.random().toString(36).substring(2, 12);
@@ -991,9 +1100,13 @@
     let socket = null;
     let myClientId = null;
     let myAlias = 'Anon-' + Math.floor(1000 + Math.random() * 9000);
-    let otherPeers = []; // List of active other peers: [{ id, alias }]
+    let otherPeers = [];
     let activeCallPeerId = null;
+    let currentCallType = 'video'; // 'video' | 'audio'
     let pendingOfferData = null;
+    let isCallMuted = false;
+    let callTimerInterval = null;
+    let callDurationSeconds = 0;
 
     let derivedAesKey = null;
     let authGateHash = null;
@@ -1013,7 +1126,7 @@
     let localStream = null;
     let iceCandidateQueue = [];
 
-    // STUN Servers for NAT Traversal
+    // Redundant High-Grade STUN Servers
     const RTC_CONFIG = {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
@@ -1038,21 +1151,32 @@
     const connText = document.getElementById('conn-text');
     const webrtcBadge = document.getElementById('webrtc-badge');
     const webrtcBadgeText = document.getElementById('webrtc-badge-text');
+    const btnAudioCall = document.getElementById('btn-audio-call');
     const btnVideoCall = document.getElementById('btn-video-call');
     const peerCountEl = document.getElementById('peer-count');
     const headerAlias = document.getElementById('header-alias');
     const recordBtn = document.getElementById('record-audio-btn');
     const callModal = document.getElementById('call-modal');
+    const videoCallGrid = document.getElementById('video-call-grid');
+    const audioCallView = document.getElementById('audio-call-view');
     const localVideo = document.getElementById('local-video');
     const remoteVideo = document.getElementById('remote-video');
+    const remoteAudio = document.getElementById('remote-audio');
     const remoteVideoLabel = document.getElementById('remote-video-label');
+    const audioCallerName = document.getElementById('audio-caller-name');
+    const audioCallStatus = document.getElementById('audio-call-status');
+    const audioCallTimer = document.getElementById('audio-call-timer');
+    const btnToggleMic = document.getElementById('btn-toggle-mic');
+    const btnMicText = document.getElementById('btn-mic-text');
     const lightboxModal = document.getElementById('lightbox-modal');
     const lightboxImg = document.getElementById('lightbox-img');
     const serverAddressInput = document.getElementById('server-address');
     const incomingCallBanner = document.getElementById('incoming-call-banner');
+    const incomingCallTitle = document.getElementById('incoming-call-title');
     const incomingCallerText = document.getElementById('incoming-caller-text');
     const peerPickerModal = document.getElementById('peer-picker-modal');
     const peerPickerList = document.getElementById('peer-picker-list');
+    const pickerModalHeading = document.getElementById('picker-modal-heading');
 
     // ==========================================
     // 1. CRYPTOGRAPHIC UTILITIES (Web Crypto API)
@@ -1175,6 +1299,7 @@
       isWebRTCSupported = evaluateWebRTCEnvironment();
 
       if (!isWebRTCSupported) {
+        btnAudioCall.style.display = 'none';
         btnVideoCall.style.display = 'none';
         webrtcBadge.className = 'badge badge-webrtc-tor';
         webrtcBadgeText.textContent = 'Tor Privacy: WebRTC Disabled';
@@ -1182,10 +1307,11 @@
 
         appendSystemMessage('🛡️ Tor Browser privacy detected: WebRTC/UDP is disabled to prevent real IP leaks. Text, Images, and Voice Notes are operating securely over the encrypted TCP tunnel.');
       } else {
+        btnAudioCall.style.display = 'flex';
         btnVideoCall.style.display = 'flex';
         webrtcBadge.className = 'badge badge-tor';
-        webrtcBadgeText.textContent = 'Video Ready';
-        webrtcBadge.title = 'WebRTC is active. Video calling will route peer-to-peer with STUN/TURN NAT traversal.';
+        webrtcBadgeText.textContent = 'Calls Ready';
+        webrtcBadge.title = 'WebRTC is active. Audio and Video calls will route peer-to-peer with STUN NAT traversal.';
       }
     }
 
@@ -1556,10 +1682,10 @@
     }
 
     // ==========================================
-    // 6. TARGETED WEBRTC 1-TO-1 CALLING (STUN/TURN)
+    // 6. TARGETED 1-TO-1 AUDIO & VIDEO CALLING
     // ==========================================
 
-    function handleVideoCallButton() {
+    function handleCallButton(type) {
       if (!isWebRTCSupported) {
         alert('WebRTC is blocked or disabled in this browser (standard Tor behavior).');
         return;
@@ -1571,15 +1697,14 @@
       }
 
       if (otherPeers.length === 1) {
-        // Direct call the single peer
-        startCallWithPeer(otherPeers[0].id, otherPeers[0].alias);
+        startCallWithPeer(otherPeers[0].id, otherPeers[0].alias, type);
       } else {
-        // Multiple peers: show picker
-        openPeerPicker();
+        openPeerPicker(type);
       }
     }
 
-    function openPeerPicker() {
+    function openPeerPicker(purpose = 'call') {
+      pickerModalHeading.textContent = purpose === 'view' ? 'Peers in Channel' : 'Select Peer to Call';
       peerPickerList.innerHTML = '';
       if (otherPeers.length === 0) {
         peerPickerList.innerHTML = '<div style="color: var(--text-muted); font-size: 13px; text-align: center; padding: 12px;">You are currently the only active peer in this channel.</div>';
@@ -1589,7 +1714,10 @@
           item.className = 'peer-item';
           item.innerHTML = `
             <span class="peer-item-name">${peer.alias}</span>
-            <button class="btn-call-peer" onclick="startCallWithPeer('${peer.id}', '${peer.alias}')">Call</button>
+            <div class="peer-item-actions">
+              <button class="btn-peer-call btn-peer-audio" onclick="startCallWithPeer('${peer.id}', '${peer.alias}', 'audio')">📞 Audio</button>
+              <button class="btn-peer-call btn-peer-video" onclick="startCallWithPeer('${peer.id}', '${peer.alias}', 'video')">📹 Video</button>
+            </div>
           `;
           peerPickerList.appendChild(item);
         });
@@ -1601,11 +1729,51 @@
       peerPickerModal.style.display = 'none';
     }
 
+    function startCallTimer() {
+      clearInterval(callTimerInterval);
+      callDurationSeconds = 0;
+      audioCallTimer.textContent = '00:00';
+      callTimerInterval = setInterval(() => {
+        callDurationSeconds++;
+        const mins = String(Math.floor(callDurationSeconds / 60)).padStart(2, '0');
+        const secs = String(callDurationSeconds % 60).padStart(2, '0');
+        const formatted = `${mins}:${secs}`;
+        audioCallTimer.textContent = formatted;
+        if (currentCallType === 'video') {
+          remoteVideoLabel.textContent = `Connected (${formatted})`;
+        }
+      }, 1000);
+    }
+
+    function toggleCallMicrophone() {
+      if (!localStream) return;
+      const audioTrack = localStream.getAudioTracks()[0];
+      if (audioTrack) {
+        isCallMuted = !isCallMuted;
+        audioTrack.enabled = !isCallMuted;
+        if (isCallMuted) {
+          btnToggleMic.classList.add('muted');
+          btnMicText.textContent = 'Unmute';
+        } else {
+          btnToggleMic.classList.remove('muted');
+          btnMicText.textContent = 'Mute';
+        }
+      }
+    }
+
     function setupPeerConnectionListeners() {
       peerConnection.ontrack = (event) => {
         if (event.streams && event.streams[0]) {
-          remoteVideo.srcObject = event.streams[0];
-          remoteVideoLabel.textContent = 'Remote Peer (Live)';
+          const stream = event.streams[0];
+          // Always route audio to remoteAudio element
+          remoteAudio.srcObject = stream;
+          if (currentCallType === 'video') {
+            remoteVideo.srcObject = stream;
+            remoteVideoLabel.textContent = 'Remote Peer (Live)';
+          } else {
+            audioCallStatus.textContent = 'Connected (Encrypted Voice)';
+          }
+          startCallTimer();
         }
       };
 
@@ -1621,15 +1789,24 @@
       peerConnection.oniceconnectionstatechange = () => {
         const state = peerConnection.iceConnectionState;
         if (state === 'checking') {
-          remoteVideoLabel.textContent = 'Connecting routes...';
+          updateCallStatusDisplay('Negotiating connection...');
         } else if (state === 'connected' || state === 'completed') {
-          remoteVideoLabel.textContent = 'Connected (Encrypted)';
-        } else if (state === 'failed') {
-          remoteVideoLabel.textContent = 'Connection Failed (NAT/UDP blocked)';
+          updateCallStatusDisplay('Connected (Encrypted)');
         } else if (state === 'disconnected') {
-          remoteVideoLabel.textContent = 'Peer Disconnected';
+          // In WebRTC, 'disconnected' can be transient (NAT re-route); do not kill call immediately
+          updateCallStatusDisplay('Network blip... Reconnecting');
+        } else if (state === 'failed') {
+          updateCallStatusDisplay('Connection failed (Firewall/NAT blocked)');
         }
       };
+    }
+
+    function updateCallStatusDisplay(text) {
+      if (currentCallType === 'video') {
+        remoteVideoLabel.textContent = text;
+      } else {
+        audioCallStatus.textContent = text;
+      }
     }
 
     async function drainCandidateQueue() {
@@ -1643,17 +1820,37 @@
       }
     }
 
-    async function startCallWithPeer(targetId, targetAlias) {
+    async function startCallWithPeer(targetId, targetAlias, type = 'video') {
       closePeerPicker();
       activeCallPeerId = targetId;
+      currentCallType = type;
       iceCandidateQueue = [];
+      isCallMuted = false;
+      btnToggleMic.classList.remove('muted');
+      btnMicText.textContent = 'Mute';
 
       callModal.style.display = 'flex';
-      remoteVideoLabel.textContent = `Calling ${targetAlias}...`;
+
+      if (type === 'video') {
+        videoCallGrid.style.display = 'flex';
+        audioCallView.style.display = 'none';
+        remoteVideoLabel.textContent = `Calling ${targetAlias}...`;
+      } else {
+        videoCallGrid.style.display = 'none';
+        audioCallView.style.display = 'flex';
+        audioCallerName.textContent = targetAlias;
+        audioCallStatus.textContent = 'Calling (Voice)...';
+      }
 
       try {
-        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        localVideo.srcObject = localStream;
+        const constraints = type === 'video'
+          ? { video: true, audio: true }
+          : { video: false, audio: true };
+
+        localStream = await navigator.mediaDevices.getUserMedia(constraints);
+        if (type === 'video') {
+          localVideo.srcObject = localStream;
+        }
 
         peerConnection = new RTCPeerConnection(RTC_CONFIG);
         setupPeerConnectionListeners();
@@ -1665,12 +1862,13 @@
 
         sendEncryptedMessage({
           type: 'webrtc_signal',
+          callType: type,
           signal: { sdp: peerConnection.localDescription }
         }, targetId);
 
-        remoteVideoLabel.textContent = `Ringing ${targetAlias}...`;
+        updateCallStatusDisplay(`Ringing ${targetAlias}...`);
       } catch (err) {
-        alert('Failed to initialize video call: ' + err.message);
+        alert(`Failed to initialize ${type} call: ` + err.message);
         terminateVideoCall();
       }
     }
@@ -1683,9 +1881,11 @@
       try {
         if (signal.sdp) {
           if (signal.sdp.type === 'offer') {
-            // Incoming Call: Show non-blocking banner (No window.confirm!)
             activeCallPeerId = fromPeerId || data.senderId;
+            currentCallType = data.callType || 'video';
             pendingOfferData = signal.sdp;
+
+            incomingCallTitle.textContent = currentCallType === 'video' ? 'Incoming Video Call' : 'Incoming Voice Call';
             incomingCallerText.textContent = `${data.sender || 'Peer'} is calling you...`;
             incomingCallBanner.style.display = 'flex';
           } else if (signal.sdp.type === 'answer') {
@@ -1711,11 +1911,30 @@
       if (!pendingOfferData || !activeCallPeerId) return;
 
       callModal.style.display = 'flex';
-      remoteVideoLabel.textContent = 'Connecting...';
+      isCallMuted = false;
+      btnToggleMic.classList.remove('muted');
+      btnMicText.textContent = 'Mute';
+
+      if (currentCallType === 'video') {
+        videoCallGrid.style.display = 'flex';
+        audioCallView.style.display = 'none';
+        remoteVideoLabel.textContent = 'Connecting...';
+      } else {
+        videoCallGrid.style.display = 'none';
+        audioCallView.style.display = 'flex';
+        audioCallerName.textContent = 'Peer';
+        audioCallStatus.textContent = 'Connecting...';
+      }
 
       try {
-        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        localVideo.srcObject = localStream;
+        const constraints = currentCallType === 'video'
+          ? { video: true, audio: true }
+          : { video: false, audio: true };
+
+        localStream = await navigator.mediaDevices.getUserMedia(constraints);
+        if (currentCallType === 'video') {
+          localVideo.srcObject = localStream;
+        }
 
         peerConnection = new RTCPeerConnection(RTC_CONFIG);
         setupPeerConnectionListeners();
@@ -1730,6 +1949,7 @@
 
         sendEncryptedMessage({
           type: 'webrtc_signal',
+          callType: currentCallType,
           signal: { sdp: peerConnection.localDescription }
         }, activeCallPeerId);
 
@@ -1747,6 +1967,7 @@
     }
 
     function terminateVideoCall() {
+      clearInterval(callTimerInterval);
       if (localStream) {
         localStream.getTracks().forEach(track => track.stop());
         localStream = null;
@@ -1760,6 +1981,7 @@
       pendingOfferData = null;
       localVideo.srcObject = null;
       remoteVideo.srcObject = null;
+      remoteAudio.srcObject = null;
       callModal.style.display = 'none';
       incomingCallBanner.style.display = 'none';
     }
@@ -1858,7 +2080,6 @@
       }
     });
 
-    // Clean close on window unload
     window.addEventListener('beforeunload', () => {
       if (socket && socket.readyState === WebSocket.OPEN) {
         socket.close();
