@@ -113,7 +113,7 @@ function broadcastExcept(senderWs, payloadString) {
     if (client.ws !== senderWs && client.ws.readyState === WebSocket.OPEN) {
       try {
         client.ws.send(payloadString);
-      } catch (_) {}
+      } catch (_) { }
     }
   }
 }
@@ -133,7 +133,7 @@ function broadcastPeerRoster() {
     if (client.ws.readyState === WebSocket.OPEN) {
       try {
         client.ws.send(updateMsg);
-      } catch (_) {}
+      } catch (_) { }
     }
   }
 }
@@ -149,7 +149,7 @@ wss.on('connection', (ws) => {
     if (!ws.isAuthenticated) {
       try {
         ws.send(JSON.stringify({ type: 'auth_error', message: 'Authentication timeout' }));
-      } catch (_) {}
+      } catch (_) { }
       ws.close(4408, 'Auth Timeout');
       setTimeout(() => ws.terminate(), 500);
     }
@@ -209,7 +209,7 @@ wss.on('connection', (ws) => {
               ) {
                 try {
                   existingClient.ws.terminate();
-                } catch (_) {}
+                } catch (_) { }
                 clients.delete(existingId);
               }
             }
@@ -247,7 +247,7 @@ wss.on('connection', (ws) => {
       clearTimeout(authTimeout);
       try {
         ws.send(JSON.stringify({ type: 'auth_error', message: 'Invalid room passcode' }));
-      } catch (_) {}
+      } catch (_) { }
       ws.close(4401, 'Unauthorized');
       setTimeout(() => {
         if (ws.readyState !== WebSocket.CLOSED) {
@@ -272,7 +272,7 @@ wss.on('connection', (ws) => {
                 iv: message.iv,
                 ciphertext: message.ciphertext
               }));
-            } catch (_) {}
+            } catch (_) { }
           }
         } else {
           // Room Broadcast (Text, Images, Audio notes)
@@ -322,7 +322,7 @@ const heartbeatTimer = setInterval(() => {
     if (client.ws.missedPings >= 1) {
       try {
         client.ws.terminate();
-      } catch (_) {}
+      } catch (_) { }
       clients.delete(id);
       broadcastPeerRoster();
       continue;
@@ -332,7 +332,7 @@ const heartbeatTimer = setInterval(() => {
     if (client.ws.readyState === WebSocket.OPEN) {
       try {
         client.ws.ping();
-      } catch (_) {}
+      } catch (_) { }
     }
   }
 }, HEARTBEAT_INTERVAL_MS);
