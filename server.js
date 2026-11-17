@@ -132,8 +132,9 @@ const wss = new WebSocketServer({
   maxPayload: 50 * 1024 * 1024
 });
 
-// In-Memory Active Clients Map: clientId -> { id, ws, alias, sessionId }
+// In-Memory Active Clients Map: clientId -> { id, ws, alias, sessionId, isHost }
 const clients = new Map();
+let hostClientId = null;
 
 /**
  * Get sanitized peer list for broadcasting
@@ -141,7 +142,11 @@ const clients = new Map();
 function getPeerList() {
   const list = [];
   for (const client of clients.values()) {
-    list.push({ id: client.id, alias: client.alias });
+    list.push({
+      id: client.id,
+      alias: client.alias,
+      isHost: (client.id === hostClientId)
+    });
   }
   return list;
 }
@@ -254,19 +259,29 @@ wss.on('connection', (ws) => {
             }
           }
 
+          // First authenticated user is Server / Host; subsequent users are Clients
+          if (!hostClientId || !clients.has(hostClientId)) {
+            hostClientId = clientId;
+          }
+          const isHost = (clientId === hostClientId);
+
           ws.clientId = clientId;
+          ws.isHost = isHost;
           clients.set(clientId, {
             id: clientId,
             ws: ws,
             alias: clientAlias,
-            sessionId: sessionId
+            sessionId: sessionId,
+            isHost: isHost
           });
 
-          // Send welcome packet with client ID and peer list
+          // Send welcome packet with client ID, role, and peer list
           ws.send(JSON.stringify({
             type: 'auth_success',
             myId: clientId,
             myAlias: clientAlias,
+            isHost: isHost,
+            hostId: hostClientId,
             peerCount: clients.size,
             peers: getPeerList()
           }));
@@ -331,6 +346,21 @@ wss.on('connection', (ws) => {
     if (ws.clientId && clients.has(ws.clientId)) {
       const client = clients.get(ws.clientId);
       clients.delete(ws.clientId);
+
+      // If the Server/Host left, elect the next client as the new Server/Host
+      if (hostClientId === client.id) {
+        const remaining = Array.from(clients.keys());
+        hostClientId = remaining.length > 0 ? remaining[0] : null;
+        if (hostClientId) {
+          const newHost = clients.get(hostClientId);
+          if (newHost && newHost.ws.readyState === WebSocket.OPEN) {
+            newHost.isHost = true;
+            try {
+              newHost.ws.send(JSON.stringify({ type: 'host_promoted' }));
+            } catch (_) {}
+          }
+        }
+      }
 
       // Notify others of exit
       broadcastExcept(ws, JSON.stringify({
