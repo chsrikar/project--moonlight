@@ -45,7 +45,6 @@
       touch-action: manipulation;
     }
 
-    /* SVG Icon utility */
     .icon {
       width: 18px;
       height: 18px;
@@ -59,18 +58,135 @@
       flex-shrink: 0;
     }
 
-    /* Security Context Notice Banner */
-    #security-warning-banner {
-      background: #78350f;
-      color: #fef3c7;
-      padding: 6px 12px;
-      font-size: 11px;
+    /* Incoming Call Notification Banner */
+    #incoming-call-banner {
+      background: linear-gradient(135deg, #064e3b, #0f766e);
+      border-bottom: 1px solid var(--accent-emerald);
+      color: #fff;
+      padding: 10px 16px;
       display: none;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 1px solid #b45309;
-      flex-shrink: 0;
-      line-height: 1.3;
+      gap: 12px;
+      z-index: 600;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+      animation: slideDown 0.3s ease-out;
+    }
+
+    @keyframes slideDown {
+      from { transform: translateY(-100%); }
+      to { transform: translateY(0); }
+    }
+
+    .incoming-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+    }
+
+    .incoming-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: ring 1.5s infinite;
+    }
+
+    @keyframes ring {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.15); }
+      100% { transform: scale(1); }
+    }
+
+    .incoming-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-incoming-accept {
+      background: var(--accent-emerald);
+      color: #000;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .btn-incoming-decline {
+      background: var(--accent-rose);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* Peer Picker Modal for multi-user rooms */
+    #peer-picker-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(6px);
+      z-index: 700;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .peer-picker-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 20px;
+      width: 100%;
+      max-width: 360px;
+    }
+
+    .peer-picker-title {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 14px;
+      color: #fff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .peer-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      margin-bottom: 8px;
+    }
+
+    .peer-item-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent-cyan);
+    }
+
+    .btn-call-peer {
+      background: var(--accent-emerald);
+      color: #000;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
     }
 
     /* Auth Gateway Overlay */
@@ -162,7 +278,7 @@
       border-radius: 8px;
       padding: 12px 14px;
       color: #fff;
-      font-size: 16px; /* 16px prevents iOS Safari auto-zoom */
+      font-size: 16px;
       font-family: inherit;
       outline: none;
       transition: border-color 0.2s;
@@ -190,14 +306,8 @@
       user-select: none;
     }
 
-    .auth-btn:hover {
-      opacity: 0.92;
-    }
-
-    .auth-btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
+    .auth-btn:hover { opacity: 0.92; }
+    .auth-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
     .auth-error {
       background: rgba(244, 63, 94, 0.12);
@@ -443,7 +553,7 @@
       font-size: 12px;
       padding: 6px 12px;
       border-radius: 16px;
-      margin: 6px 0;
+      margin: 4px 0;
       text-align: center;
       max-width: 92%;
       line-height: 1.4;
@@ -483,10 +593,7 @@
       user-select: none;
     }
 
-    .action-btn:hover {
-      background: var(--border-subtle);
-      color: #fff;
-    }
+    .action-btn:hover { background: var(--border-subtle); color: #fff; }
 
     .action-btn.recording {
       background: var(--accent-rose);
@@ -508,15 +615,13 @@
       border-radius: 8px;
       padding: 10px 12px;
       color: #fff;
-      font-size: 16px; /* 16px prevents iOS Safari auto-zoom */
+      font-size: 16px;
       font-family: inherit;
       outline: none;
       min-width: 0;
     }
 
-    #text-input:focus {
-      border-color: var(--accent-cyan);
-    }
+    #text-input:focus { border-color: var(--accent-cyan); }
 
     #send-btn {
       background: var(--accent-emerald);
@@ -525,15 +630,13 @@
       font-weight: 600;
     }
 
-    #send-btn:hover {
-      opacity: 0.9;
-    }
+    #send-btn:hover { opacity: 0.9; }
 
     /* Video Call UI Overlay */
     #call-modal {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.92);
+      background: rgba(0, 0, 0, 0.94);
       backdrop-filter: blur(10px);
       z-index: 500;
       display: none;
@@ -624,9 +727,7 @@
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
     }
 
-    /* ==========================================
-       MOBILE RESPONSIVE BREAKPOINTS (<= 640px)
-       ========================================== */
+    /* Mobile Responsive Breakpoints */
     @media (max-width: 640px) {
       header {
         padding: 8px 12px;
@@ -634,62 +735,26 @@
         gap: 6px;
       }
 
-      .channel-name {
-        font-size: 13px;
-        gap: 4px;
-      }
+      .channel-name { font-size: 13px; gap: 4px; }
+      .channel-sub { font-size: 10px; }
+      .badge-label, .btn-label { display: none; }
+      .btn-header { padding: 6px 9px; }
 
-      .channel-sub {
-        font-size: 10px;
-      }
-
-      .badge-label,
-      .btn-label {
-        display: none; /* Hide button text to keep clean icon-only layout on mobile */
-      }
-
-      .btn-header {
-        padding: 6px 9px;
-      }
-
-      /* Compact horizontal badges bar on mobile */
       .header-badges {
         display: flex;
         overflow-x: auto;
         white-space: nowrap;
         scrollbar-width: none;
-        -webkit-overflow-scrolling: touch;
         gap: 5px;
         max-width: 140px;
       }
-      .header-badges::-webkit-scrollbar {
-        display: none;
-      }
+      .header-badges::-webkit-scrollbar { display: none; }
+      .badge { font-size: 10px; padding: 2px 7px; flex-shrink: 0; }
 
-      .badge {
-        font-size: 10px;
-        padding: 2px 7px;
-        flex-shrink: 0;
-      }
-
-      #messages-viewport {
-        padding: 12px 10px;
-        gap: 10px;
-      }
-
-      .msg-wrapper {
-        max-width: 88%;
-      }
-
-      .msg-bubble {
-        padding: 8px 11px;
-        font-size: 14px;
-      }
-
-      .msg-audio {
-        width: 190px;
-        height: 36px;
-      }
+      #messages-viewport { padding: 12px 10px; gap: 10px; }
+      .msg-wrapper { max-width: 88%; }
+      .msg-bubble { padding: 8px 11px; font-size: 14px; }
+      .msg-audio { width: 190px; height: 36px; }
 
       footer {
         padding: 8px 10px;
@@ -697,22 +762,11 @@
         gap: 6px;
       }
 
-      .action-btn {
-        width: 38px;
-        height: 38px;
-      }
+      .action-btn { width: 38px; height: 38px; }
+      #text-input { padding: 8px 10px; font-size: 16px; }
+      .auth-card { padding: 22px 18px; max-width: 95%; }
 
-      #text-input {
-        padding: 8px 10px;
-        font-size: 16px; /* Essential to prevent iOS Safari auto-zoom */
-      }
-
-      .auth-card {
-        padding: 22px 18px;
-        max-width: 95%;
-      }
-
-      /* Mobile Video Call: Native PiP Experience */
+      /* Mobile Video Call: PiP Layout */
       #call-modal {
         padding: 10px;
         padding-top: max(10px, env(safe-area-inset-top));
@@ -729,7 +783,6 @@
       }
 
       .video-card:first-child {
-        /* Local PiP camera in top-right corner */
         position: absolute;
         top: 12px;
         right: 12px;
@@ -742,31 +795,47 @@
       }
 
       .video-card:last-child {
-        /* Remote main video takes full frame */
         width: 100%;
         height: 100%;
         border-radius: 12px;
       }
 
-      .call-controls {
-        margin-top: 16px;
-      }
-
-      .call-btn {
-        padding: 10px 22px;
-        font-size: 13px;
-      }
+      .call-controls { margin-top: 16px; }
+      .call-btn { padding: 10px 22px; font-size: 13px; }
     }
   </style>
 </head>
 <body>
 
-  <!-- Insecure Context Warning for external networks -->
-  <div id="security-warning-banner">
-    <span>⚠️ <strong>Insecure HTTP Context:</strong> Accessing over plain HTTP on an external IP disables browser Camera/Mic permissions. For cross-network video calls, use an HTTPS URL (Render or HTTPS tunnel). Text and images remain active.</span>
+  <!-- In-Page Non-blocking Incoming Call Banner -->
+  <div id="incoming-call-banner">
+    <div class="incoming-info">
+      <div class="incoming-icon">
+        <svg class="icon" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+      </div>
+      <div>
+        <div style="font-weight: 700;">Incoming Video Call</div>
+        <div style="font-size: 11px; opacity: 0.9;" id="incoming-caller-text">Peer is calling...</div>
+      </div>
+    </div>
+    <div class="incoming-actions">
+      <button class="btn-incoming-accept" onclick="acceptIncomingCall()">Accept</button>
+      <button class="btn-incoming-decline" onclick="declineIncomingCall()">Decline</button>
+    </div>
   </div>
 
-  <!-- AUTHENTICATION GATEWAY (PBKDF2 Derivation) -->
+  <!-- Peer Picker Modal for multi-user calls -->
+  <div id="peer-picker-modal">
+    <div class="peer-picker-card">
+      <div class="peer-picker-title">
+        <span>Select Peer to Call</span>
+        <button onclick="closePeerPicker()" style="background: none; border: none; color: #fff; cursor: pointer; font-size: 16px;">✕</button>
+      </div>
+      <div id="peer-picker-list"></div>
+    </div>
+  </div>
+
+  <!-- AUTHENTICATION GATEWAY -->
   <div id="auth-overlay">
     <div class="auth-card">
       <div class="auth-brand">
@@ -783,11 +852,11 @@
       <form id="auth-form" onsubmit="handleAuthSubmit(event)">
         <div class="form-group">
           <label for="room-passcode">Secret Room Passcode</label>
-          <input type="password" id="room-passcode" class="form-input" placeholder="e.g. moonlight-alpha" autocomplete="off" required autofocus>
+          <input type="password" id="room-passcode" class="form-input" placeholder="e.g. mymoonlight1011" autocomplete="off" required autofocus>
         </div>
         <div class="form-group">
           <label for="user-alias">Anonymous Codename</label>
-          <input type="text" id="user-alias" class="form-input" placeholder="e.g. Phantom, Ghost-42" maxlength="20">
+          <input type="text" id="user-alias" class="form-input" placeholder="e.g. lovely darling" maxlength="20">
         </div>
         <div class="form-group">
           <label for="server-address">Relay Host / Tunnel URL</label>
@@ -818,7 +887,7 @@
     </div>
 
     <div class="header-badges">
-      <!-- Tor / WAN Resilient Status -->
+      <!-- Status Badge -->
       <span class="badge badge-status" id="connection-badge">
         <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
         <span id="conn-text">Disconnected</span>
@@ -830,22 +899,20 @@
         <span id="webrtc-badge-text">Detecting WebRTC...</span>
       </span>
 
-      <!-- Active Peer Count -->
-      <span class="badge badge-e2ee" id="peer-badge">
+      <!-- Active Peer Count with click to view -->
+      <span class="badge badge-e2ee" id="peer-badge" onclick="openPeerPicker()" style="cursor: pointer;" title="Click to view peers in room">
         <svg class="icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-        <span id="peer-count">0 peers</span>
+        <span id="peer-count">1 peer</span>
       </span>
     </div>
 
     <div class="header-actions">
-      <!-- Video Call Trigger -->
-      <button class="btn-header" id="btn-video-call" onclick="initiateVideoCall()" title="Start Encrypted WebRTC Video Call">
+      <button class="btn-header" id="btn-video-call" onclick="handleVideoCallButton()" title="Start Encrypted WebRTC Video Call">
         <svg class="icon" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
         <span class="btn-label">Video</span>
       </button>
 
-      <!-- Panic / Wipe Session Button -->
-      <button class="btn-header btn-panic" onclick="triggerPanicWipe()" title="Instant Session Wipe: Clear RAM, close socket, reset view">
+      <button class="btn-header btn-panic" onclick="triggerPanicWipe()" title="Instant Session Wipe">
         <svg class="icon" viewBox="0 0 24 24"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
         <span class="btn-label">Wipe</span>
       </button>
@@ -864,21 +931,17 @@
   <!-- INPUT CONTROLS -->
   <footer>
     <div class="input-row">
-      <!-- File/Image Picker -->
       <input type="file" id="image-file-input" accept="image/*" style="display: none" onchange="handleImageSelected(event)">
       <button class="action-btn" onclick="document.getElementById('image-file-input').click()" title="Attach Encrypted Image (50MB Limit)">
         <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
       </button>
 
-      <!-- Audio Recorder Button -->
       <button class="action-btn" id="record-audio-btn" onclick="toggleAudioRecording()" title="Record & Stream Encrypted Audio Note">
         <svg class="icon" id="mic-icon" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
       </button>
 
-      <!-- Text Input -->
       <input type="text" id="text-input" placeholder="Type an encrypted message..." autocomplete="off">
 
-      <!-- Send Button -->
       <button class="action-btn" id="send-btn" onclick="sendTextMessage()" title="Send">
         <svg class="icon" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
       </button>
@@ -914,12 +977,24 @@
     /**
      * MOONLIGHT CLIENT CORE
      * Web Crypto PBKDF2 + AES-256-GCM Implementation
-     * Mobile Optimized, WAN & Tor Resilient WebSocket / WebRTC Client
+     * 1-to-1 Targeted Signaling, Ghost Pruning & In-App Call Handshake
      */
+
+    // Persistent Session ID (Prunes ghost sockets on browser reload)
+    let mySessionId = sessionStorage.getItem('moonlight_session_id');
+    if (!mySessionId) {
+      mySessionId = 'sess_' + Math.random().toString(36).substring(2, 12);
+      sessionStorage.setItem('moonlight_session_id', mySessionId);
+    }
 
     // State
     let socket = null;
+    let myClientId = null;
     let myAlias = 'Anon-' + Math.floor(1000 + Math.random() * 9000);
+    let otherPeers = []; // List of active other peers: [{ id, alias }]
+    let activeCallPeerId = null;
+    let pendingOfferData = null;
+
     let derivedAesKey = null;
     let authGateHash = null;
     let isWebRTCSupported = false;
@@ -938,22 +1013,15 @@
     let localStream = null;
     let iceCandidateQueue = [];
 
+    // STUN Servers for NAT Traversal
     const RTC_CONFIG = {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
         { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun3.l.google.com:19302' },
         { urls: 'stun:stun.cloudflare.com:3478' },
-        { urls: 'stun:openrelay.metered.ca:80' },
-        {
-          urls: [
-            'turn:openrelay.metered.ca:80',
-            'turn:openrelay.metered.ca:443',
-            'turn:openrelay.metered.ca:443?transport=tcp'
-          ],
-          username: 'openrelay',
-          credential: 'openrelay'
-        }
+        { urls: 'stun:stun.services.mozilla.com:3478' }
       ],
       iceCandidatePoolSize: 10
     };
@@ -981,7 +1049,10 @@
     const lightboxModal = document.getElementById('lightbox-modal');
     const lightboxImg = document.getElementById('lightbox-img');
     const serverAddressInput = document.getElementById('server-address');
-    const securityWarningBanner = document.getElementById('security-warning-banner');
+    const incomingCallBanner = document.getElementById('incoming-call-banner');
+    const incomingCallerText = document.getElementById('incoming-caller-text');
+    const peerPickerModal = document.getElementById('peer-picker-modal');
+    const peerPickerList = document.getElementById('peer-picker-list');
 
     // ==========================================
     // 1. CRYPTOGRAPHIC UTILITIES (Web Crypto API)
@@ -1116,16 +1187,10 @@
         webrtcBadgeText.textContent = 'Video Ready';
         webrtcBadge.title = 'WebRTC is active. Video calling will route peer-to-peer with STUN/TURN NAT traversal.';
       }
-
-      if (!window.isSecureContext && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-        if (securityWarningBanner) {
-          securityWarningBanner.style.display = 'flex';
-        }
-      }
     }
 
     // ==========================================
-    // 3. WEBSOCKET CLIENT (CROSS-NETWORK TUNED)
+    // 3. WEBSOCKET CLIENT & ROSTER MANAGEMENT
     // ==========================================
 
     function resolveWebSocketUrl() {
@@ -1149,6 +1214,14 @@
       return `${protocol}//${host}`;
     }
 
+    function updatePeerRoster(allPeers) {
+      if (!Array.isArray(allPeers)) return;
+      otherPeers = allPeers.filter(p => p.id !== myClientId);
+      const totalCount = otherPeers.length + 1;
+      peerCountEl.textContent = `${totalCount} peer${totalCount === 1 ? '' : 's'}`;
+      peerCountEl.title = `Peers online: You (${myAlias})` + (otherPeers.length > 0 ? ', ' + otherPeers.map(p => p.alias).join(', ') : '');
+    }
+
     function connectWebSocket() {
       if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
         return;
@@ -1169,7 +1242,9 @@
       socket.onopen = () => {
         socket.send(JSON.stringify({
           type: 'auth',
-          token: authGateHash
+          token: authGateHash,
+          alias: myAlias,
+          sessionId: mySessionId
         }));
       };
 
@@ -1183,9 +1258,31 @@
 
         if (msg.type === 'auth_success') {
           reconnectAttempts = 0;
+          myClientId = msg.myId;
           updateConnectionStatus('connected');
-          if (msg.peerCount !== undefined) {
-            peerCountEl.textContent = `${msg.peerCount} peer${msg.peerCount === 1 ? '' : 's'}`;
+          updatePeerRoster(msg.peers);
+          return;
+        }
+
+        if (msg.type === 'peer_roster') {
+          updatePeerRoster(msg.peers);
+          return;
+        }
+
+        if (msg.type === 'peer_joined') {
+          if (msg.peer && msg.peer.id !== myClientId) {
+            appendSystemMessage(`👋 <strong>${msg.peer.alias}</strong> entered the channel.`);
+          }
+          return;
+        }
+
+        if (msg.type === 'peer_left') {
+          if (msg.alias) {
+            appendSystemMessage(`🚪 <strong>${msg.alias}</strong> left the channel.`);
+          }
+          if (activeCallPeerId === msg.peerId) {
+            appendSystemMessage(`⚠️ Call ended: Peer disconnected.`);
+            terminateVideoCall();
           }
           return;
         }
@@ -1197,15 +1294,10 @@
           return;
         }
 
-        if (msg.type === 'peer_count') {
-          peerCountEl.textContent = `${msg.count} peer${msg.count === 1 ? '' : 's'}`;
-          return;
-        }
-
         if (msg.type === 'encrypted') {
           try {
             const decrypted = await decryptPayload(msg);
-            handleIncomingDecryptedMessage(decrypted);
+            handleIncomingDecryptedMessage(decrypted, msg.fromId);
           } catch (decryptErr) {
             console.warn('[E2EE] Failed to decrypt payload (passcode mismatch or corrupt packet)');
           }
@@ -1226,9 +1318,7 @@
         }
       };
 
-      socket.onerror = () => {
-        // Handled via onclose
-      };
+      socket.onerror = () => {};
     }
 
     function scheduleReconnect() {
@@ -1262,17 +1352,21 @@
     // 4. MESSAGE HANDLING & DISPATCH
     // ==========================================
 
-    async function sendEncryptedMessage(dataObj) {
+    async function sendEncryptedMessage(dataObj, targetPeerId = null) {
       if (!socket || socket.readyState !== WebSocket.OPEN) {
         appendSystemMessage('⚠️ Cannot send: WebSocket tunnel is reconnecting...');
         return;
       }
 
       dataObj.sender = myAlias;
+      dataObj.senderId = myClientId;
       dataObj.timestamp = Date.now();
 
       try {
         const encryptedEnvelope = await encryptPayload(dataObj);
+        if (targetPeerId) {
+          encryptedEnvelope.targetId = targetPeerId;
+        }
         socket.send(JSON.stringify(encryptedEnvelope));
 
         if (dataObj.type !== 'webrtc_signal') {
@@ -1283,11 +1377,11 @@
       }
     }
 
-    function handleIncomingDecryptedMessage(data) {
+    function handleIncomingDecryptedMessage(data, fromPeerId) {
       if (data.type === 'text' || data.type === 'image' || data.type === 'audio') {
         renderMessage(data, false);
       } else if (data.type === 'webrtc_signal') {
-        handleWebRTCSignal(data);
+        handleWebRTCSignal(data, fromPeerId);
       }
     }
 
@@ -1462,8 +1556,50 @@
     }
 
     // ==========================================
-    // 6. CROSS-NETWORK WEBRTC CALLING (STUN/TURN)
+    // 6. TARGETED WEBRTC 1-TO-1 CALLING (STUN/TURN)
     // ==========================================
+
+    function handleVideoCallButton() {
+      if (!isWebRTCSupported) {
+        alert('WebRTC is blocked or disabled in this browser (standard Tor behavior).');
+        return;
+      }
+
+      if (otherPeers.length === 0) {
+        alert('No other peers in the room right now. Open another device or tab and connect with the same passcode to test!');
+        return;
+      }
+
+      if (otherPeers.length === 1) {
+        // Direct call the single peer
+        startCallWithPeer(otherPeers[0].id, otherPeers[0].alias);
+      } else {
+        // Multiple peers: show picker
+        openPeerPicker();
+      }
+    }
+
+    function openPeerPicker() {
+      peerPickerList.innerHTML = '';
+      if (otherPeers.length === 0) {
+        peerPickerList.innerHTML = '<div style="color: var(--text-muted); font-size: 13px; text-align: center; padding: 12px;">You are currently the only active peer in this channel.</div>';
+      } else {
+        otherPeers.forEach(peer => {
+          const item = document.createElement('div');
+          item.className = 'peer-item';
+          item.innerHTML = `
+            <span class="peer-item-name">${peer.alias}</span>
+            <button class="btn-call-peer" onclick="startCallWithPeer('${peer.id}', '${peer.alias}')">Call</button>
+          `;
+          peerPickerList.appendChild(item);
+        });
+      }
+      peerPickerModal.style.display = 'flex';
+    }
+
+    function closePeerPicker() {
+      peerPickerModal.style.display = 'none';
+    }
 
     function setupPeerConnectionListeners() {
       peerConnection.ontrack = (event) => {
@@ -1474,24 +1610,24 @@
       };
 
       peerConnection.onicecandidate = (event) => {
-        if (event.candidate) {
+        if (event.candidate && activeCallPeerId) {
           sendEncryptedMessage({
             type: 'webrtc_signal',
             signal: { candidate: event.candidate }
-          });
+          }, activeCallPeerId);
         }
       };
 
       peerConnection.oniceconnectionstatechange = () => {
         const state = peerConnection.iceConnectionState;
         if (state === 'checking') {
-          remoteVideoLabel.textContent = 'Traversing NAT (STUN/TURN)...';
+          remoteVideoLabel.textContent = 'Connecting routes...';
         } else if (state === 'connected' || state === 'completed') {
-          remoteVideoLabel.textContent = 'Connected';
+          remoteVideoLabel.textContent = 'Connected (Encrypted)';
         } else if (state === 'failed') {
-          remoteVideoLabel.textContent = 'NAT/UDP blocked';
+          remoteVideoLabel.textContent = 'Connection Failed (NAT/UDP blocked)';
         } else if (state === 'disconnected') {
-          remoteVideoLabel.textContent = 'Disconnected';
+          remoteVideoLabel.textContent = 'Peer Disconnected';
         }
       };
     }
@@ -1502,24 +1638,18 @@
         try {
           await peerConnection.addIceCandidate(new RTCIceCandidate(cand));
         } catch (e) {
-          console.warn('ICE candidate buffering catch:', e);
+          console.warn('Queued candidate error:', e);
         }
       }
     }
 
-    async function initiateVideoCall() {
-      if (!isWebRTCSupported) {
-        alert('WebRTC is blocked or disabled in this browser (standard Tor behavior).');
-        return;
-      }
-
-      if (!window.isSecureContext && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-        alert('Cross-network video calls require HTTPS (Render or HTTPS tunnel) due to browser security restrictions on camera/mic access.');
-      }
+    async function startCallWithPeer(targetId, targetAlias) {
+      closePeerPicker();
+      activeCallPeerId = targetId;
+      iceCandidateQueue = [];
 
       callModal.style.display = 'flex';
-      remoteVideoLabel.textContent = 'Accessing camera...';
-      iceCandidateQueue = [];
+      remoteVideoLabel.textContent = `Calling ${targetAlias}...`;
 
       try {
         localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -1536,48 +1666,28 @@
         sendEncryptedMessage({
           type: 'webrtc_signal',
           signal: { sdp: peerConnection.localDescription }
-        });
+        }, targetId);
 
-        remoteVideoLabel.textContent = 'Calling peer...';
+        remoteVideoLabel.textContent = `Ringing ${targetAlias}...`;
       } catch (err) {
         alert('Failed to initialize video call: ' + err.message);
         terminateVideoCall();
       }
     }
 
-    async function handleWebRTCSignal(data) {
+    async function handleWebRTCSignal(data, fromPeerId) {
       if (!isWebRTCSupported) return;
-
       const signal = data.signal;
       if (!signal) return;
 
       try {
         if (signal.sdp) {
           if (signal.sdp.type === 'offer') {
-            const accept = confirm(`${data.sender || 'Peer'} is requesting an encrypted video call. Accept?`);
-            if (!accept) return;
-
-            callModal.style.display = 'flex';
-            remoteVideoLabel.textContent = 'Opening camera...';
-
-            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            localVideo.srcObject = localStream;
-
-            peerConnection = new RTCPeerConnection(RTC_CONFIG);
-            setupPeerConnectionListeners();
-
-            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(signal.sdp));
-            await drainCandidateQueue();
-
-            const answer = await peerConnection.createAnswer();
-            await peerConnection.setLocalDescription(answer);
-
-            sendEncryptedMessage({
-              type: 'webrtc_signal',
-              signal: { sdp: peerConnection.localDescription }
-            });
+            // Incoming Call: Show non-blocking banner (No window.confirm!)
+            activeCallPeerId = fromPeerId || data.senderId;
+            pendingOfferData = signal.sdp;
+            incomingCallerText.textContent = `${data.sender || 'Peer'} is calling you...`;
+            incomingCallBanner.style.display = 'flex';
           } else if (signal.sdp.type === 'answer') {
             if (peerConnection) {
               await peerConnection.setRemoteDescription(new RTCSessionDescription(signal.sdp));
@@ -1596,6 +1706,46 @@
       }
     }
 
+    async function acceptIncomingCall() {
+      incomingCallBanner.style.display = 'none';
+      if (!pendingOfferData || !activeCallPeerId) return;
+
+      callModal.style.display = 'flex';
+      remoteVideoLabel.textContent = 'Connecting...';
+
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        localVideo.srcObject = localStream;
+
+        peerConnection = new RTCPeerConnection(RTC_CONFIG);
+        setupPeerConnectionListeners();
+
+        localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(pendingOfferData));
+        await drainCandidateQueue();
+
+        const answer = await peerConnection.createAnswer();
+        await peerConnection.setLocalDescription(answer);
+
+        sendEncryptedMessage({
+          type: 'webrtc_signal',
+          signal: { sdp: peerConnection.localDescription }
+        }, activeCallPeerId);
+
+        pendingOfferData = null;
+      } catch (err) {
+        alert('Failed to answer call: ' + err.message);
+        terminateVideoCall();
+      }
+    }
+
+    function declineIncomingCall() {
+      incomingCallBanner.style.display = 'none';
+      pendingOfferData = null;
+      activeCallPeerId = null;
+    }
+
     function terminateVideoCall() {
       if (localStream) {
         localStream.getTracks().forEach(track => track.stop());
@@ -1606,9 +1756,12 @@
         peerConnection = null;
       }
       iceCandidateQueue = [];
+      activeCallPeerId = null;
+      pendingOfferData = null;
       localVideo.srcObject = null;
       remoteVideo.srcObject = null;
       callModal.style.display = 'none';
+      incomingCallBanner.style.display = 'none';
     }
 
     // ==========================================
@@ -1631,6 +1784,8 @@
 
       derivedAesKey = null;
       authGateHash = null;
+      myClientId = null;
+      otherPeers = [];
       reconnectAttempts = 0;
 
       messagesViewport.innerHTML = `
@@ -1700,6 +1855,13 @@
       applyWebRTCStrategy();
       if (serverAddressInput && window.location.host) {
         serverAddressInput.value = window.location.host;
+      }
+    });
+
+    // Clean close on window unload
+    window.addEventListener('beforeunload', () => {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.close();
       }
     });
   </script>
