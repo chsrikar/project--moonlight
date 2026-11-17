@@ -1054,7 +1054,7 @@
         <div class="video-label">You</div>
       </div>
       <div class="video-card">
-        <video id="remote-video" autoplay playsinline webkit-playsinline></video>
+        <video id="remote-video" autoplay playsinline webkit-playsinline muted></video>
         <div class="video-label" id="remote-video-label">Connecting...</div>
       </div>
     </div>
@@ -1127,35 +1127,27 @@
     let remoteStream = null;
     let iceCandidateQueue = [];
 
-    // STUN + TURN ICE Server config
+    // STUN + TURN ICE Server config (MiroTalk proven architecture)
     // TURN is REQUIRED for symmetric NAT / mobile CGNAT traversal
     let RTC_CONFIG = {
       iceServers: [
-        // Google STUN (direct peer-to-peer when NAT is permissive)
+        // Google & Cloudflare STUN
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
         { urls: 'stun:stun2.l.google.com:19302' },
         { urls: 'stun:stun.cloudflare.com:3478' },
-        // OpenRelay TURN – public free-tier relay for symmetric NAT / mobile networks
-        // These handle the "Connection Failed (Symmetric NAT/UDP blocked)" state
-        { urls: 'stun:stun.relay.metered.ca:80' },
+        // Metered TURN – Relays across Symmetric NAT / Indian CGNAT (Jio, Airtel, Vi)
         {
-          urls: 'turn:standard.relay.metered.ca:80',
-          username: 'openrelayproject',
-          credential: 'openrelayproject'
-        },
-        {
-          urls: 'turn:standard.relay.metered.ca:443',
-          username: 'openrelayproject',
-          credential: 'openrelayproject'
-        },
-        {
-          urls: 'turn:standard.relay.metered.ca:443?transport=tcp',
-          username: 'openrelayproject',
-          credential: 'openrelayproject'
+          urls: [
+            'turn:a.relay.metered.ca:80',
+            'turn:a.relay.metered.ca:443',
+            'turn:a.relay.metered.ca:443?transport=tcp',
+            'turns:a.relay.metered.ca:443?transport=tcp'
+          ],
+          username: 'e8dd65b92c62d3e36cafb807',
+          credential: 'uWdWNmkhvyqTEswO'
         }
-      ],
-      iceTransportPolicy: 'all'
+      ]
     };
 
     // Override ICE config with server-configured TURN credentials if available
@@ -1545,11 +1537,9 @@
       } else if (data.type === 'webrtc_signal') {
         handleWebRTCSignal(data, fromPeerId);
       } else if (data.type === 'call_ended') {
-        // Remote peer hung up — terminate on our end too
-        if (callModal.style.display !== 'none') {
-          terminateVideoCall(false); // false = don't re-send call_ended (avoid echo)
-          appendSystemMessage(`📵 ${data.sender || 'Peer'} ended the call.`);
-        }
+        // Remote peer hung up or declined — terminate immediately on our end
+        terminateVideoCall(false); // false = don't re-send call_ended (avoid loop)
+        appendSystemMessage(`📵 ${data.sender || 'Peer'} ended the call.`);
       }
     }
 
@@ -1805,44 +1795,31 @@
 
     function setupPeerConnectionListeners() {
       peerConnection.ontrack = (event) => {
-        const stream = getOrCreateRemoteStream();
+        const inbound = (event.streams && event.streams[0]) ? event.streams[0] : new MediaStream([event.track]);
+        const kind = event.track ? event.track.kind : null;
 
-        // Collect all incoming tracks (Unified Plan: tracks may arrive without event.streams)
-        if (event.track) {
-          if (!stream.getTracks().some(t => t.id === event.track.id)) {
-            stream.addTrack(event.track);
+        // Route by track kind (MiroTalk proven architecture)
+        if (kind === 'audio') {
+          if (remoteAudio.srcObject !== inbound) {
+            remoteAudio.srcObject = inbound;
+          }
+          remoteAudio.muted = false;
+          remoteAudio.volume = 1.0;
+          remoteAudio.play().catch(e => console.warn('[AUDIO] remoteAudio play note:', e));
+          if (currentCallType !== 'video') {
+            audioCallStatus.textContent = 'Connected (Encrypted Voice)';
           }
         }
-        if (event.streams && event.streams[0]) {
-          event.streams[0].getTracks().forEach(t => {
-            if (!stream.getTracks().some(x => x.id === t.id)) {
-              stream.addTrack(t);
-            }
-          });
-        }
 
-        // Force-attach by nulling first (guarantees browser treats it as a fresh load)
-        // This is the key fix for "connected but black screen / silent audio"
-        const attachAndPlay = (el, s) => {
-          el.srcObject = null;
-          el.srcObject = s;
-          el.muted = false;
-          el.volume = 1.0;
-          const p = el.play();
-          if (p !== undefined) p.catch(e => {
-            // Autoplay blocked → try unmuted programmatic play one more time after tiny delay
-            setTimeout(() => el.play().catch(() => {}), 300);
-          });
-        };
-
-        if (currentCallType === 'video') {
-          attachAndPlay(remoteVideo, stream);
-          attachAndPlay(remoteAudio, stream);  // dual-attach for max mobile compat
+        if (kind === 'video') {
+          if (remoteVideo.srcObject !== inbound) {
+            remoteVideo.srcObject = inbound;
+          }
+          remoteVideo.muted = true; // audio is handled by remoteAudio; muting remoteVideo ensures seamless 100% autoplay across iOS Safari & Android
+          remoteVideo.play().catch(e => console.warn('[VIDEO] remoteVideo play note:', e));
           remoteVideoLabel.textContent = 'Remote Peer (Live)';
-        } else {
-          attachAndPlay(remoteAudio, stream);
-          audioCallStatus.textContent = 'Connected (Encrypted Voice)';
         }
+
         startCallTimer();
       };
 
@@ -2076,6 +2053,9 @@
 
     function declineIncomingCall() {
       incomingCallBanner.style.display = 'none';
+      if (activeCallPeerId && socket && socket.readyState === WebSocket.OPEN) {
+        sendEncryptedMessage({ type: 'call_ended' }, activeCallPeerId).catch(() => {});
+      }
       pendingOfferData = null;
       activeCallPeerId = null;
     }

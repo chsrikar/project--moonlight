@@ -61,16 +61,21 @@ const server = http.createServer((req, res) => {
   if (req.url === '/api/ice-servers') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
 
-    // Default: STUN + OpenRelay public TURN (handles symmetric NAT / mobile CGNAT)
+    // Default: STUN + Metered TURN (MiroTalk verified configuration for Symmetric NAT / CGNAT)
     let iceServers = [
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
       { urls: 'stun:stun.cloudflare.com:3478' },
-      { urls: 'stun:stun.relay.metered.ca:80' },
-      // OpenRelay free TURN – required for mobile-to-mobile and cross-NAT calls
-      { urls: 'turn:standard.relay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
-      { urls: 'turn:standard.relay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
-      { urls: 'turn:standard.relay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+      {
+        urls: [
+          'turn:a.relay.metered.ca:80',
+          'turn:a.relay.metered.ca:443',
+          'turn:a.relay.metered.ca:443?transport=tcp',
+          'turns:a.relay.metered.ca:443?transport=tcp'
+        ],
+        username: 'e8dd65b92c62d3e36cafb807',
+        credential: 'uWdWNmkhvyqTEswO'
+      }
     ];
 
     // If operator set TURN_CONFIG (full JSON array), use that instead
