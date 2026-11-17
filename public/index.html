@@ -174,11 +174,16 @@
     }
 
     .auth-error {
-      color: var(--accent-rose);
-      font-size: 12px;
-      margin-top: 12px;
+      background: rgba(244, 63, 94, 0.12);
+      border: 1px solid rgba(244, 63, 94, 0.3);
+      color: #fca5a5;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-top: 14px;
       display: none;
       text-align: center;
+      line-height: 1.4;
     }
 
     /* App Header */
@@ -601,7 +606,7 @@
       <form id="auth-form" onsubmit="handleAuthSubmit(event)">
         <div class="form-group">
           <label for="room-passcode">Secret Room Passcode</label>
-          <input type="password" id="room-passcode" class="form-input" placeholder="Enter channel passcode" autocomplete="off" required autofocus>
+          <input type="password" id="room-passcode" class="form-input" placeholder="e.g. moonlight-alpha" autocomplete="off" required autofocus>
         </div>
         <div class="form-group">
           <label for="user-alias">Anonymous Codename</label>
@@ -744,6 +749,7 @@
     let audioChunks = [];
     let recordingTimer = null;
     let recordingSeconds = 0;
+    let authRejected = false;
 
     // WebRTC State
     let peerConnection = null;
@@ -899,10 +905,6 @@
     // 2. TOR DETECTION & WEBRTC STRATEGY
     // ==========================================
 
-    /**
-     * Test if WebRTC is available or blocked by Tor Browser.
-     * Tor Browser blocks UDP traffic and disables media.peerconnection by default.
-     */
     function evaluateWebRTCEnvironment() {
       try {
         if (!window.RTCPeerConnection && !window.webkitRTCPeerConnection) {
@@ -946,6 +948,7 @@
         return;
       }
 
+      authRejected = false;
       updateConnectionStatus('connecting');
 
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -980,7 +983,8 @@
         }
 
         if (msg.type === 'auth_error') {
-          showAuthError('Invalid room passcode. Access denied.');
+          authRejected = true;
+          showAuthError(msg.message || 'Invalid room passcode. Access denied.');
           triggerPanicWipe();
           return;
         }
@@ -1001,10 +1005,20 @@
         }
       };
 
-      socket.onclose = () => {
+      socket.onclose = (event) => {
         updateConnectionStatus('disconnected');
-        // Exponential backoff with jitter for Tor circuit latency recovery
-        scheduleReconnect();
+
+        // Check if connection was closed due to an authentication rejection
+        if (event.code === 4401 || event.code === 4408 || authRejected) {
+          showAuthError('Invalid room passcode. Access denied.');
+          triggerPanicWipe();
+          return;
+        }
+
+        // Only schedule reconnect if we have credentials and it wasn't an auth rejection
+        if (authGateHash) {
+          scheduleReconnect();
+        }
       };
 
       socket.onerror = () => {
@@ -1013,10 +1027,10 @@
     }
 
     function scheduleReconnect() {
-      if (reconnectTimeout || !authGateHash) return;
+      if (reconnectTimeout || !authGateHash || authRejected) return;
 
       reconnectAttempts++;
-      // Backoff: 2s, 4s, 8s, max 15s + random jitter for Tor network jitter
+      // Backoff: 2s, 4s, 8s, max 15s + random jitter for Tor network latency recovery
       const delay = Math.min(15000, Math.pow(2, Math.min(reconnectAttempts, 4)) * 1000 + Math.random() * 1500);
 
       connText.textContent = `Tor Reconnecting (${Math.round(delay / 1000)}s)...`;
@@ -1174,10 +1188,8 @@
     // Audio Note Recording via MediaRecorder API (WebM Blobs)
     async function toggleAudioRecording() {
       if (isMediaRecording) {
-        // Stop recording
         stopAudioRecording();
       } else {
-        // Start recording
         startAudioRecording();
       }
     }
@@ -1286,7 +1298,6 @@
           }
         };
 
-        // Create and send SDP Offer
         const offer = await peerConnection.createOffer();
         await peerConnection.setLocalDescription(offer);
 
@@ -1397,17 +1408,19 @@
       // 3. Nullify memory keys & cryptographic state
       derivedAesKey = null;
       authGateHash = null;
+      reconnectAttempts = 0;
 
       // 4. Wipe DOM messages
       messagesViewport.innerHTML = `
         <div class="system-notice">
-          ⚠️ <strong>Memory Wiped:</strong> Local encryption keys have been expunged from memory and connection severed.
+          🔒 <strong>Zero-Trace Channel Active:</strong> Transmitted packets are encrypted in the browser with your derived key before entering the WebSocket. The server cannot inspect plaintext or audio/video contents.
         </div>
       `;
 
       // 5. Restore Auth Gateway
       authOverlay.style.display = 'flex';
-      document.getElementById('room-passcode').value = '';
+      const passInput = document.getElementById('room-passcode');
+      if (passInput) passInput.value = '';
       authSubmitBtn.disabled = false;
       authBtnText.textContent = 'Derive Keys & Connect';
       updateConnectionStatus('disconnected');
@@ -1452,6 +1465,9 @@
     function showAuthError(msg) {
       authError.textContent = msg;
       authError.style.display = 'block';
+      authOverlay.style.display = 'flex';
+      authSubmitBtn.disabled = false;
+      authBtnText.textContent = 'Derive Keys & Connect';
     }
 
     // Startup check
@@ -1461,4 +1477,3 @@
   </script>
 </body>
 </html>
-

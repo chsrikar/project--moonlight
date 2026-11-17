@@ -7,7 +7,7 @@
  * 2. Zero-Knowledge Relay: The server NEVER receives the raw passcode or the E2EE AES key.
  *    It routes opaque encrypted ciphertext blobs and cannot inspect contents.
  * 3. Tor Latency Resilient: WebSocket heartbeat tuned for Tor circuit hops (45-60s intervals).
- * 4. Passcode-Gated Sockets: Unauthenticated sockets are forcibly terminated within 10s.
+ * 4. Passcode-Gated Sockets: Unauthenticated sockets are closed with code 4401.
  */
 
 const http = require('http');
@@ -136,13 +136,14 @@ wss.on('connection', (ws) => {
   ws.isAuthenticated = false;
   ws.missedPings = 0;
 
-  // Strict Passcode Gate: Socket MUST authenticate within 10 seconds or be terminated
+  // Strict Passcode Gate: Socket MUST authenticate within 10 seconds or be closed
   const authTimeout = setTimeout(() => {
     if (!ws.isAuthenticated) {
       try {
         ws.send(JSON.stringify({ type: 'auth_error', message: 'Authentication timeout' }));
       } catch (_) {}
-      ws.terminate();
+      ws.close(4408, 'Auth Timeout');
+      setTimeout(() => ws.terminate(), 500);
     }
   }, 10000);
 
@@ -157,8 +158,10 @@ wss.on('connection', (ws) => {
     try {
       message = JSON.parse(rawData.toString());
     } catch (e) {
-      // Malformed JSON: terminate unauthenticated, ignore if authenticated
-      if (!ws.isAuthenticated) ws.terminate();
+      if (!ws.isAuthenticated) {
+        ws.close(4400, 'Bad Request');
+        setTimeout(() => ws.terminate(), 500);
+      }
       return;
     }
 
@@ -195,9 +198,17 @@ wss.on('connection', (ws) => {
         }
       }
 
-      // Invalid passcode or invalid first message: Immediately terminate socket
+      // Invalid passcode: Send auth_error and close with 4401 Unauthorized
       clearTimeout(authTimeout);
-      ws.terminate();
+      try {
+        ws.send(JSON.stringify({ type: 'auth_error', message: 'Invalid room passcode' }));
+      } catch (_) {}
+      ws.close(4401, 'Unauthorized');
+      setTimeout(() => {
+        if (ws.readyState !== WebSocket.CLOSED) {
+          ws.terminate();
+        }
+      }, 500);
       return;
     }
 
@@ -265,4 +276,3 @@ server.listen(PORT, () => {
   process.stdout.write(`[MOONLIGHT] Node.js Zero-Trace Server active on port ${PORT}\n`);
   process.stdout.write(`[MOONLIGHT] Tor-Tolerant Heartbeat: ${HEARTBEAT_INTERVAL_MS}ms | Payload limit: 50MB\n`);
 });
-

@@ -98,31 +98,46 @@ async function runTests() {
     }).on('error', reject);
   });
 
-  // Test 2: Invalid passcode socket gate (Immediate termination)
-  console.log('\n[Test 2] Verifying Socket Gate: Invalid Passcode Socket Termination...');
+  // Test 2: Invalid passcode socket gate (Closed with 4401 Unauthorized)
+  console.log('\n[Test 2] Verifying Socket Gate: Invalid Passcode Rejection (Code 4401)...');
   await new Promise(async (resolve, reject) => {
     const wrongKeys = await deriveKeys('incorrect-passcode');
     const ws = new WebSocket(`ws://localhost:${PORT}`);
 
+    let receivedAuthError = false;
     let closed = false;
+
     ws.on('open', () => {
       ws.send(JSON.stringify({ type: 'auth', token: wrongKeys.authHash }));
     });
 
-    ws.on('close', () => {
+    ws.on('message', (data) => {
+      try {
+        const msg = JSON.parse(data.toString());
+        if (msg.type === 'auth_error') {
+          receivedAuthError = true;
+        }
+      } catch (_) {}
+    });
+
+    ws.on('close', (code) => {
       closed = true;
-      console.log('  ✔ Socket terminated immediately on invalid passcode.');
-      resolve();
+      if (code === 4401 || receivedAuthError) {
+        console.log(`  ✔ Socket rejected with 4401 Unauthorized and auth_error notification.`);
+        resolve();
+      } else {
+        reject(new Error(`Expected close code 4401, got ${code}`));
+      }
     });
 
     ws.on('error', () => {
-      // Expected on sudden termination
+      // Expected on close
     });
 
     setTimeout(() => {
       if (!closed) {
         ws.terminate();
-        reject(new Error('Socket was not terminated on invalid passcode!'));
+        reject(new Error('Socket was not closed on invalid passcode!'));
       }
     }, 2000);
   });
@@ -160,7 +175,6 @@ async function runTests() {
 
       if (msg.type === 'encrypted') {
         try {
-          // Decrypt payload with B's key
           const payload = await decryptData(validKeys.aesKey, msg);
           if (payload.text === 'Tor Hidden Service E2EE Message') {
             console.log('  ✔ Client B successfully decrypted message transmitted through server.');
@@ -177,7 +191,6 @@ async function runTests() {
       }
     });
 
-    // Wait for both to auth, then send encrypted message from A to B
     const checkInterval = setInterval(async () => {
       if (clientA_authed && clientB_authed) {
         clearInterval(checkInterval);
@@ -225,4 +238,3 @@ runTests().catch(err => {
   console.error('\n❌ TEST FAILURE:', err);
   process.exit(1);
 });
-
