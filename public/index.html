@@ -1,0 +1,1464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>MOONLIGHT // Zero-Trace Ephemeral Network</title>
+  <style>
+    :root {
+      --bg-primary: #07090e;
+      --bg-surface: #0e131d;
+      --bg-surface-elevated: #151c2a;
+      --bg-input: #0a0d14;
+      --border-subtle: #1e293b;
+      --border-focus: #38bdf8;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --accent-emerald: #10b981;
+      --accent-cyan: #06b6d4;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+      --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      font-family: var(--font-stack);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* SVG Icon utility */
+    .icon {
+      width: 18px;
+      height: 18px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      vertical-align: middle;
+      display: inline-block;
+    }
+
+    /* Auth Gateway Overlay */
+    #auth-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(7, 9, 14, 0.95);
+      backdrop-filter: blur(8px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .auth-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 32px;
+      width: 100%;
+      max-width: 440px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+    }
+
+    .auth-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .brand-logo {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-emerald));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #000;
+      font-weight: 800;
+      font-size: 18px;
+    }
+
+    .brand-title {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: #fff;
+    }
+
+    .brand-subtitle {
+      font-size: 11px;
+      color: var(--accent-cyan);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+    }
+
+    .auth-description {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin-bottom: 24px;
+    }
+
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .form-input {
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 12px 14px;
+      color: #fff;
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .form-input:focus {
+      border-color: var(--accent-cyan);
+    }
+
+    .auth-btn {
+      width: 100%;
+      background: linear-gradient(135deg, #0284c7, #0d9488);
+      border: none;
+      border-radius: 8px;
+      padding: 14px;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: opacity 0.2s;
+    }
+
+    .auth-btn:hover {
+      opacity: 0.92;
+    }
+
+    .auth-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .auth-error {
+      color: var(--accent-rose);
+      font-size: 12px;
+      margin-top: 12px;
+      display: none;
+      text-align: center;
+    }
+
+    /* App Header */
+    header {
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .channel-meta {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .channel-name {
+      font-size: 14px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .channel-sub {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .header-badges {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid transparent;
+      user-select: none;
+    }
+
+    .badge-e2ee {
+      background: rgba(16, 185, 129, 0.1);
+      color: var(--accent-emerald);
+      border-color: rgba(16, 185, 129, 0.3);
+    }
+
+    .badge-tor {
+      background: rgba(6, 182, 212, 0.1);
+      color: var(--accent-cyan);
+      border-color: rgba(6, 182, 212, 0.3);
+    }
+
+    .badge-status {
+      background: rgba(245, 158, 11, 0.1);
+      color: var(--accent-amber);
+      border-color: rgba(245, 158, 11, 0.3);
+    }
+
+    .badge-status.connected {
+      background: rgba(16, 185, 129, 0.1);
+      color: var(--accent-emerald);
+      border-color: rgba(16, 185, 129, 0.3);
+    }
+
+    .badge-webrtc-tor {
+      background: rgba(244, 63, 94, 0.1);
+      color: var(--accent-rose);
+      border-color: rgba(244, 63, 94, 0.3);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-header {
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .btn-header:hover {
+      background: var(--border-subtle);
+      color: #fff;
+    }
+
+    .btn-panic {
+      color: var(--accent-rose);
+      border-color: rgba(244, 63, 94, 0.4);
+      background: rgba(244, 63, 94, 0.08);
+    }
+
+    .btn-panic:hover {
+      background: var(--accent-rose);
+      color: #fff;
+    }
+
+    /* Main Container & Chat Area */
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #messages-viewport {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      scroll-behavior: smooth;
+    }
+
+    .msg-wrapper {
+      display: flex;
+      flex-direction: column;
+      max-width: 75%;
+    }
+
+    .msg-wrapper.mine {
+      align-self: flex-end;
+      align-items: flex-end;
+    }
+
+    .msg-wrapper.theirs {
+      align-self: flex-start;
+      align-items: flex-start;
+    }
+
+    .msg-header {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .msg-sender {
+      font-weight: 600;
+      color: var(--accent-cyan);
+    }
+
+    .msg-wrapper.mine .msg-sender {
+      color: var(--accent-emerald);
+    }
+
+    .msg-bubble {
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 14px;
+      line-height: 1.5;
+      word-break: break-word;
+      position: relative;
+    }
+
+    .msg-wrapper.theirs .msg-bubble {
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      border-bottom-left-radius: 2px;
+    }
+
+    .msg-wrapper.mine .msg-bubble {
+      background: #0369a1;
+      color: #ffffff;
+      border-bottom-right-radius: 2px;
+    }
+
+    .msg-image {
+      max-width: 320px;
+      max-height: 320px;
+      border-radius: 8px;
+      display: block;
+      cursor: pointer;
+      object-fit: cover;
+    }
+
+    .msg-audio {
+      width: 260px;
+      height: 40px;
+      outline: none;
+    }
+
+    .system-notice {
+      align-self: center;
+      background: rgba(30, 41, 59, 0.6);
+      border: 1px solid rgba(51, 65, 85, 0.4);
+      color: var(--text-muted);
+      font-size: 12px;
+      padding: 6px 14px;
+      border-radius: 16px;
+      margin: 8px 0;
+      text-align: center;
+      max-width: 90%;
+    }
+
+    /* Input & Action Bar */
+    footer {
+      background: var(--bg-surface);
+      border-top: 1px solid var(--border-subtle);
+      padding: 14px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .input-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .action-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+
+    .action-btn:hover {
+      background: var(--border-subtle);
+      color: #fff;
+    }
+
+    .action-btn.recording {
+      background: var(--accent-rose);
+      color: #fff;
+      animation: pulse 1.5s infinite;
+      border-color: transparent;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(244, 63, 94, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0); }
+    }
+
+    #text-input {
+      flex: 1;
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: #fff;
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+    }
+
+    #text-input:focus {
+      border-color: var(--accent-cyan);
+    }
+
+    #send-btn {
+      background: var(--accent-emerald);
+      color: #000;
+      border: none;
+      font-weight: 600;
+    }
+
+    #send-btn:hover {
+      opacity: 0.9;
+    }
+
+    /* Video Call UI Overlay */
+    #call-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.88);
+      backdrop-filter: blur(10px);
+      z-index: 500;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .video-grid {
+      display: flex;
+      gap: 20px;
+      max-width: 900px;
+      width: 100%;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .video-card {
+      background: #000;
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      overflow: hidden;
+      position: relative;
+      width: 420px;
+      height: 315px;
+    }
+
+    .video-card video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .video-label {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      color: #fff;
+    }
+
+    .call-controls {
+      margin-top: 24px;
+      display: flex;
+      gap: 16px;
+    }
+
+    .call-btn {
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border: none;
+    }
+
+    .call-btn.end {
+      background: var(--accent-rose);
+      color: #fff;
+    }
+
+    /* Lightbox Modal */
+    #lightbox-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.9);
+      z-index: 800;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      cursor: zoom-out;
+      padding: 20px;
+    }
+
+    #lightbox-img {
+      max-width: 95%;
+      max-height: 95%;
+      border-radius: 8px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+    }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+      .header-badges { display: none; }
+      .msg-wrapper { max-width: 90%; }
+      .video-card { width: 100%; height: 240px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- AUTHENTICATION GATEWAY (PBKDF2 Derivation) -->
+  <div id="auth-overlay">
+    <div class="auth-card">
+      <div class="auth-brand">
+        <div class="brand-logo">M</div>
+        <div>
+          <div class="brand-title">MOONLIGHT</div>
+          <div class="brand-subtitle">Tor Hardened // E2EE Relaying</div>
+        </div>
+      </div>
+      <p class="auth-description">
+        All communication is client-side encrypted via <strong>AES-256-GCM</strong>.
+        The server acts purely as an opaque TCP relay and never holds your secret key.
+      </p>
+      <form id="auth-form" onsubmit="handleAuthSubmit(event)">
+        <div class="form-group">
+          <label for="room-passcode">Secret Room Passcode</label>
+          <input type="password" id="room-passcode" class="form-input" placeholder="Enter channel passcode" autocomplete="off" required autofocus>
+        </div>
+        <div class="form-group">
+          <label for="user-alias">Anonymous Codename</label>
+          <input type="text" id="user-alias" class="form-input" placeholder="e.g. Phantom, Ghost-42" maxlength="20">
+        </div>
+        <button type="submit" id="auth-submit-btn" class="auth-btn">
+          <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+          <span id="auth-btn-text">Derive Keys & Connect</span>
+        </button>
+        <div id="auth-error" class="auth-error"></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- APPLICATION HEADER -->
+  <header>
+    <div class="header-left">
+      <div class="channel-meta">
+        <div class="channel-name">
+          <span>MOONLIGHT ROOM</span>
+          <span class="badge badge-e2ee" title="End-to-End Encrypted: Web Crypto AES-256-GCM">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            AES-256-GCM
+          </span>
+        </div>
+        <div class="channel-sub" id="header-alias">Connecting as Anon</div>
+      </div>
+    </div>
+
+    <div class="header-badges">
+      <!-- Tor Resilient Status -->
+      <span class="badge badge-status" id="connection-badge">
+        <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
+        <span id="conn-text">Disconnected</span>
+      </span>
+
+      <!-- Tor Browser WebRTC Policy Status -->
+      <span class="badge badge-tor" id="webrtc-badge">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M1 1l22 22"></path><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="M23 7l-7 5 7 5V7z"></path></svg>
+        <span id="webrtc-badge-text">Detecting WebRTC...</span>
+      </span>
+
+      <!-- Active Peer Count -->
+      <span class="badge badge-e2ee" id="peer-badge">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+        <span id="peer-count">0 peers</span>
+      </span>
+    </div>
+
+    <div class="header-actions">
+      <!-- Video Call Trigger (Gracefully disabled in Tor) -->
+      <button class="btn-header" id="btn-video-call" onclick="initiateVideoCall()" title="Start Encrypted WebRTC Video Call">
+        <svg class="icon" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+        <span>Video Call</span>
+      </button>
+
+      <!-- Panic / Wipe Session Button -->
+      <button class="btn-header btn-panic" onclick="triggerPanicWipe()" title="Instant Session Wipe: Clear RAM, close socket, reset view">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
+        <span>Wipe RAM</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- CHAT MESSAGES DISPLAY -->
+  <main>
+    <div id="messages-viewport">
+      <div class="system-notice">
+        🔒 <strong>Zero-Trace Channel Active:</strong> Transmitted packets are encrypted in the browser with your derived key before entering the WebSocket. The server cannot inspect plaintext or audio/video contents.
+      </div>
+    </div>
+  </main>
+
+  <!-- INPUT CONTROLS -->
+  <footer>
+    <div class="input-row">
+      <!-- File/Image Picker -->
+      <input type="file" id="image-file-input" accept="image/*" style="display: none" onchange="handleImageSelected(event)">
+      <button class="action-btn" onclick="document.getElementById('image-file-input').click()" title="Attach Encrypted Image (50MB Limit)">
+        <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+      </button>
+
+      <!-- Audio Recorder Button -->
+      <button class="action-btn" id="record-audio-btn" onclick="toggleAudioRecording()" title="Record & Stream Encrypted Audio Note">
+        <svg class="icon" id="mic-icon" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+      </button>
+
+      <!-- Text Input -->
+      <input type="text" id="text-input" placeholder="Type an encrypted message... (Enter to send)" autocomplete="off">
+
+      <!-- Send Button -->
+      <button class="action-btn" id="send-btn" onclick="sendTextMessage()" title="Send">
+        <svg class="icon" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+      </button>
+    </div>
+  </footer>
+
+  <!-- FULLSCREEN LIGHTBOX -->
+  <div id="lightbox-modal" onclick="closeLightbox()">
+    <img id="lightbox-img" src="" alt="Encrypted attachment">
+  </div>
+
+  <!-- WEBRTC VIDEO CALL MODAL (Active only when WebRTC is supported) -->
+  <div id="call-modal">
+    <div class="video-grid">
+      <div class="video-card">
+        <video id="local-video" autoplay playsinline muted></video>
+        <div class="video-label">Local Camera (You)</div>
+      </div>
+      <div class="video-card">
+        <video id="remote-video" autoplay playsinline></video>
+        <div class="video-label" id="remote-video-label">Awaiting Peer Stream...</div>
+      </div>
+    </div>
+    <div class="call-controls">
+      <button class="call-btn end" onclick="terminateVideoCall()">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-6-6 19.8 19.8 0 0 1-3.11-8.69 2 2 0 0 1 2-2.18h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.09 9.91"></path><line x1="23" y1="1" x2="1" y2="23"></line></svg>
+        End Call
+      </button>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * MOONLIGHT CLIENT CORE
+     * Web Crypto PBKDF2 + AES-256-GCM Implementation
+     * Tor Latency Resilient WebSocket Client
+     */
+
+    // State
+    let socket = null;
+    let myAlias = 'Anon-' + Math.floor(1000 + Math.random() * 9000);
+    let derivedAesKey = null;
+    let authGateHash = null;
+    let isWebRTCSupported = false;
+    let reconnectTimeout = null;
+    let reconnectAttempts = 0;
+    let isMediaRecording = false;
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let recordingTimer = null;
+    let recordingSeconds = 0;
+
+    // WebRTC State
+    let peerConnection = null;
+    let localStream = null;
+    const RTC_CONFIG = {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+      ]
+    };
+
+    // DOM Elements
+    const authOverlay = document.getElementById('auth-overlay');
+    const authForm = document.getElementById('auth-form');
+    const authSubmitBtn = document.getElementById('auth-submit-btn');
+    const authBtnText = document.getElementById('auth-btn-text');
+    const authError = document.getElementById('auth-error');
+    const messagesViewport = document.getElementById('messages-viewport');
+    const textInput = document.getElementById('text-input');
+    const connBadge = document.getElementById('connection-badge');
+    const connText = document.getElementById('conn-text');
+    const webrtcBadge = document.getElementById('webrtc-badge');
+    const webrtcBadgeText = document.getElementById('webrtc-badge-text');
+    const btnVideoCall = document.getElementById('btn-video-call');
+    const peerCountEl = document.getElementById('peer-count');
+    const headerAlias = document.getElementById('header-alias');
+    const recordBtn = document.getElementById('record-audio-btn');
+    const callModal = document.getElementById('call-modal');
+    const localVideo = document.getElementById('local-video');
+    const remoteVideo = document.getElementById('remote-video');
+    const remoteVideoLabel = document.getElementById('remote-video-label');
+    const lightboxModal = document.getElementById('lightbox-modal');
+    const lightboxImg = document.getElementById('lightbox-img');
+
+    // ==========================================
+    // 1. CRYPTOGRAPHIC UTILITIES (Web Crypto API)
+    // ==========================================
+
+    // Chunk-safe ArrayBuffer / Base64 conversions for large 50MB files
+    function arrayBufferToBase64(buffer) {
+      let binary = '';
+      const bytes = new Uint8Array(buffer);
+      const len = bytes.byteLength;
+      const chunkSize = 0x8000; // 32KB chunks to prevent call-stack overflows
+      for (let i = 0; i < len; i += chunkSize) {
+        binary += String.fromCharCode.apply(null, bytes.subarray(i, Math.min(i + chunkSize, len)));
+      }
+      return window.btoa(binary);
+    }
+
+    function base64ToArrayBuffer(base64) {
+      const binaryString = window.atob(base64);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      return bytes.buffer;
+    }
+
+    function uint8ArrayToBase64(uint8) {
+      return arrayBufferToBase64(uint8.buffer);
+    }
+
+    function base64ToUint8Array(base64) {
+      return new Uint8Array(base64ToArrayBuffer(base64));
+    }
+
+    /**
+     * Derive two cryptographic keys from the raw passcode:
+     * 1. Auth Hash (SHA-256): Sent to server for zero-knowledge socket gating.
+     * 2. AES-256-GCM Key (PBKDF2, 100,000 iterations): Kept strictly in client memory.
+     */
+    async function deriveCryptoKeys(passcode) {
+      const enc = new TextEncoder();
+
+      // 1. Compute Server Auth Token
+      const authData = enc.encode('moonlight-auth-v1:' + passcode);
+      const authDigest = await crypto.subtle.digest('SHA-256', authData);
+      const authHash = Array.from(new Uint8Array(authDigest))
+        .map(b => b.toString(16).padStart(2, '0')).join('');
+
+      // 2. Import passcode as key derivation material
+      const keyMaterial = await crypto.subtle.importKey(
+        'raw',
+        enc.encode(passcode),
+        { name: 'PBKDF2' },
+        false,
+        ['deriveKey']
+      );
+
+      // Domain-separated salt for AES-256-GCM
+      const salt = enc.encode('moonlight-e2ee-aes-gcm-v1-salt');
+
+      // 3. Derive 256-bit AES-GCM Key (non-extractable for memory protection)
+      const aesKey = await crypto.subtle.deriveKey(
+        {
+          name: 'PBKDF2',
+          salt: salt,
+          iterations: 100000,
+          hash: 'SHA-256'
+        },
+        keyMaterial,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['encrypt', 'decrypt']
+      );
+
+      return { authHash, aesKey };
+    }
+
+    /**
+     * Encrypt an arbitrary JavaScript object using AES-256-GCM with a fresh 96-bit IV
+     */
+    async function encryptPayload(dataObj) {
+      const enc = new TextEncoder();
+      const plaintextBuffer = enc.encode(JSON.stringify(dataObj));
+
+      // 96-bit (12-byte) initialization vector
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+
+      const ciphertextBuffer = await crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv: iv },
+        derivedAesKey,
+        plaintextBuffer
+      );
+
+      return {
+        type: 'encrypted',
+        iv: uint8ArrayToBase64(iv),
+        ciphertext: arrayBufferToBase64(ciphertextBuffer)
+      };
+    }
+
+    /**
+     * Decrypt incoming AES-256-GCM payload envelope
+     */
+    async function decryptPayload(envelope) {
+      const iv = base64ToUint8Array(envelope.iv);
+      const ciphertextBuffer = base64ToArrayBuffer(envelope.ciphertext);
+
+      const decryptedBuffer = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: iv },
+        derivedAesKey,
+        ciphertextBuffer
+      );
+
+      const dec = new TextDecoder();
+      return JSON.parse(dec.decode(decryptedBuffer));
+    }
+
+    // ==========================================
+    // 2. TOR DETECTION & WEBRTC STRATEGY
+    // ==========================================
+
+    /**
+     * Test if WebRTC is available or blocked by Tor Browser.
+     * Tor Browser blocks UDP traffic and disables media.peerconnection by default.
+     */
+    function evaluateWebRTCEnvironment() {
+      try {
+        if (!window.RTCPeerConnection && !window.webkitRTCPeerConnection) {
+          return false;
+        }
+        // Test instantiation
+        const pc = new (window.RTCPeerConnection || window.webkitRTCPeerConnection)(RTC_CONFIG);
+        pc.close();
+        return true;
+      } catch (err) {
+        return false;
+      }
+    }
+
+    function applyWebRTCStrategy() {
+      isWebRTCSupported = evaluateWebRTCEnvironment();
+
+      if (!isWebRTCSupported) {
+        // Graceful degradation UI for Tor users
+        btnVideoCall.style.display = 'none';
+        webrtcBadge.className = 'badge badge-webrtc-tor';
+        webrtcBadgeText.textContent = 'Tor Privacy: WebRTC Disabled';
+        webrtcBadge.title = 'Tor Browser disables WebRTC & UDP to prevent IP deanonymization. Text, Images, and Audio notes remain fully functional over the encrypted WebSocket TCP channel.';
+
+        appendSystemMessage('🛡️ Tor Browser privacy detected: WebRTC/UDP is disabled to prevent real IP leaks. Text, Images, and Voice Notes are operating securely over the encrypted TCP tunnel.');
+      } else {
+        // Clearnet or WebRTC-enabled browser
+        btnVideoCall.style.display = 'flex';
+        webrtcBadge.className = 'badge badge-tor';
+        webrtcBadgeText.textContent = 'WebRTC Video Ready';
+        webrtcBadge.title = 'WebRTC is active. Video calling will route peer-to-peer with encrypted WebSocket signaling.';
+      }
+    }
+
+    // ==========================================
+    // 3. WEBSOCKET CLIENT (TOR LATENCY TUNED)
+    // ==========================================
+
+    function connectWebSocket() {
+      if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
+        return;
+      }
+
+      updateConnectionStatus('connecting');
+
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}`;
+
+      socket = new WebSocket(wsUrl);
+
+      socket.onopen = () => {
+        // Send zero-knowledge authentication hash
+        socket.send(JSON.stringify({
+          type: 'auth',
+          token: authGateHash
+        }));
+      };
+
+      socket.onmessage = async (event) => {
+        let msg;
+        try {
+          msg = JSON.parse(event.data);
+        } catch (e) {
+          return;
+        }
+
+        // Server-level messages
+        if (msg.type === 'auth_success') {
+          reconnectAttempts = 0;
+          updateConnectionStatus('connected');
+          if (msg.peerCount !== undefined) {
+            peerCountEl.textContent = `${msg.peerCount} peer${msg.peerCount === 1 ? '' : 's'}`;
+          }
+          return;
+        }
+
+        if (msg.type === 'auth_error') {
+          showAuthError('Invalid room passcode. Access denied.');
+          triggerPanicWipe();
+          return;
+        }
+
+        if (msg.type === 'peer_count') {
+          peerCountEl.textContent = `${msg.count} peer${msg.count === 1 ? '' : 's'}`;
+          return;
+        }
+
+        // Encrypted Relay Messages
+        if (msg.type === 'encrypted') {
+          try {
+            const decrypted = await decryptPayload(msg);
+            handleIncomingDecryptedMessage(decrypted);
+          } catch (decryptErr) {
+            console.warn('[E2EE] Failed to decrypt payload (passcode mismatch or corrupt packet)');
+          }
+        }
+      };
+
+      socket.onclose = () => {
+        updateConnectionStatus('disconnected');
+        // Exponential backoff with jitter for Tor circuit latency recovery
+        scheduleReconnect();
+      };
+
+      socket.onerror = () => {
+        socket.close();
+      };
+    }
+
+    function scheduleReconnect() {
+      if (reconnectTimeout || !authGateHash) return;
+
+      reconnectAttempts++;
+      // Backoff: 2s, 4s, 8s, max 15s + random jitter for Tor network jitter
+      const delay = Math.min(15000, Math.pow(2, Math.min(reconnectAttempts, 4)) * 1000 + Math.random() * 1500);
+
+      connText.textContent = `Tor Reconnecting (${Math.round(delay / 1000)}s)...`;
+
+      reconnectTimeout = setTimeout(() => {
+        reconnectTimeout = null;
+        connectWebSocket();
+      }, delay);
+    }
+
+    function updateConnectionStatus(state) {
+      if (state === 'connected') {
+        connBadge.className = 'badge badge-status connected';
+        connText.textContent = 'Encrypted Tunnel Active';
+      } else if (state === 'connecting') {
+        connBadge.className = 'badge badge-status';
+        connText.textContent = 'Routing via Tor...';
+      } else {
+        connBadge.className = 'badge badge-status';
+        connText.textContent = 'Disconnected';
+      }
+    }
+
+    // ==========================================
+    // 4. MESSAGE HANDLING & DISPATCH
+    // ==========================================
+
+    async function sendEncryptedMessage(dataObj) {
+      if (!socket || socket.readyState !== WebSocket.OPEN) {
+        appendSystemMessage('⚠️ Cannot send: Tor WebSocket tunnel is reconnecting...');
+        return;
+      }
+
+      dataObj.sender = myAlias;
+      dataObj.timestamp = Date.now();
+
+      try {
+        const encryptedEnvelope = await encryptPayload(dataObj);
+        socket.send(JSON.stringify(encryptedEnvelope));
+
+        // Render locally (except for WebRTC signals)
+        if (dataObj.type !== 'webrtc_signal') {
+          renderMessage(dataObj, true);
+        }
+      } catch (err) {
+        console.error('Encryption failed:', err);
+      }
+    }
+
+    function handleIncomingDecryptedMessage(data) {
+      if (data.type === 'text' || data.type === 'image' || data.type === 'audio') {
+        renderMessage(data, false);
+      } else if (data.type === 'webrtc_signal') {
+        handleWebRTCSignal(data);
+      }
+    }
+
+    function renderMessage(data, isMine) {
+      const wrapper = document.createElement('div');
+      wrapper.className = `msg-wrapper ${isMine ? 'mine' : 'theirs'}`;
+
+      const header = document.createElement('div');
+      header.className = 'msg-header';
+
+      const senderSpan = document.createElement('span');
+      senderSpan.className = 'msg-sender';
+      senderSpan.textContent = isMine ? 'You' : (data.sender || 'Anonymous');
+
+      const timeSpan = document.createElement('span');
+      const d = new Date(data.timestamp || Date.now());
+      timeSpan.textContent = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+      header.appendChild(senderSpan);
+      header.appendChild(timeSpan);
+      wrapper.appendChild(header);
+
+      const bubble = document.createElement('div');
+      bubble.className = 'msg-bubble';
+
+      if (data.type === 'text') {
+        bubble.textContent = data.text;
+      } else if (data.type === 'image') {
+        const img = document.createElement('img');
+        img.className = 'msg-image';
+        img.src = data.dataUrl;
+        img.alt = 'Encrypted attachment';
+        img.onclick = () => openLightbox(data.dataUrl);
+        bubble.appendChild(img);
+      } else if (data.type === 'audio') {
+        const audio = document.createElement('audio');
+        audio.className = 'msg-audio';
+        audio.controls = true;
+        audio.src = data.dataUrl;
+        bubble.appendChild(audio);
+      }
+
+      wrapper.appendChild(bubble);
+      messagesViewport.appendChild(wrapper);
+      messagesViewport.scrollTop = messagesViewport.scrollHeight;
+    }
+
+    function appendSystemMessage(text) {
+      const notice = document.createElement('div');
+      notice.className = 'system-notice';
+      notice.innerHTML = text;
+      messagesViewport.appendChild(notice);
+      messagesViewport.scrollTop = messagesViewport.scrollHeight;
+    }
+
+    // ==========================================
+    // 5. INPUT ACTIONS: TEXT, IMAGE, AUDIO
+    // ==========================================
+
+    function sendTextMessage() {
+      const text = textInput.value.trim();
+      if (!text) return;
+      textInput.value = '';
+
+      sendEncryptedMessage({
+        type: 'text',
+        text: text
+      });
+    }
+
+    textInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        sendTextMessage();
+      }
+    });
+
+    // Base64 Image handling via FileReader API
+    function handleImageSelected(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      if (file.size > 50 * 1024 * 1024) {
+        alert('File size exceeds the 50MB payload threshold.');
+        event.target.value = '';
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        sendEncryptedMessage({
+          type: 'image',
+          dataUrl: e.target.result,
+          fileName: file.name
+        });
+      };
+      reader.readAsDataURL(file);
+      event.target.value = '';
+    }
+
+    // Audio Note Recording via MediaRecorder API (WebM Blobs)
+    async function toggleAudioRecording() {
+      if (isMediaRecording) {
+        // Stop recording
+        stopAudioRecording();
+      } else {
+        // Start recording
+        startAudioRecording();
+      }
+    }
+
+    async function startAudioRecording() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert('Microphone access is not supported by this browser.');
+        return;
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioChunks = [];
+        mediaRecorder = new MediaRecorder(stream);
+
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) {
+            audioChunks.push(e.data);
+          }
+        };
+
+        mediaRecorder.onstop = () => {
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          stream.getTracks().forEach(track => track.stop());
+
+          const reader = new FileReader();
+          reader.onload = () => {
+            sendEncryptedMessage({
+              type: 'audio',
+              dataUrl: reader.result,
+              duration: recordingSeconds
+            });
+          };
+          reader.readAsDataURL(audioBlob);
+        };
+
+        mediaRecorder.start();
+        isMediaRecording = true;
+        recordingSeconds = 0;
+        recordBtn.classList.add('recording');
+        recordBtn.title = 'Recording Voice Note... Click to send';
+
+        recordingTimer = setInterval(() => {
+          recordingSeconds++;
+        }, 1000);
+      } catch (err) {
+        alert('Could not access microphone: ' + err.message);
+      }
+    }
+
+    function stopAudioRecording() {
+      if (mediaRecorder && isMediaRecording) {
+        mediaRecorder.stop();
+        isMediaRecording = false;
+        clearInterval(recordingTimer);
+        recordBtn.classList.remove('recording');
+        recordBtn.title = 'Record & Stream Encrypted Audio Note';
+      }
+    }
+
+    // Lightbox for Images
+    function openLightbox(src) {
+      lightboxImg.src = src;
+      lightboxModal.style.display = 'flex';
+    }
+
+    function closeLightbox() {
+      lightboxModal.style.display = 'none';
+      lightboxImg.src = '';
+    }
+
+    // ==========================================
+    // 6. WEBRTC LIVE VIDEO CALLING (UDP/STUN)
+    // ==========================================
+
+    async function initiateVideoCall() {
+      if (!isWebRTCSupported) {
+        alert('WebRTC is blocked or disabled in this browser (standard Tor behavior).');
+        return;
+      }
+
+      callModal.style.display = 'flex';
+      remoteVideoLabel.textContent = 'Connecting local camera...';
+
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        localVideo.srcObject = localStream;
+
+        peerConnection = new RTCPeerConnection(RTC_CONFIG);
+
+        localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+        peerConnection.ontrack = (event) => {
+          if (event.streams && event.streams[0]) {
+            remoteVideo.srcObject = event.streams[0];
+            remoteVideoLabel.textContent = 'Remote Peer (Encrypted)';
+          }
+        };
+
+        peerConnection.onicecandidate = (event) => {
+          if (event.candidate) {
+            sendEncryptedMessage({
+              type: 'webrtc_signal',
+              signal: { candidate: event.candidate }
+            });
+          }
+        };
+
+        // Create and send SDP Offer
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+
+        sendEncryptedMessage({
+          type: 'webrtc_signal',
+          signal: { sdp: peerConnection.localDescription }
+        });
+
+        remoteVideoLabel.textContent = 'Calling peer... (Signaling over encrypted WS)';
+      } catch (err) {
+        alert('Failed to initialize video call: ' + err.message);
+        terminateVideoCall();
+      }
+    }
+
+    async function handleWebRTCSignal(data) {
+      if (!isWebRTCSupported) return;
+
+      const signal = data.signal;
+      if (!signal) return;
+
+      try {
+        if (signal.sdp) {
+          if (signal.sdp.type === 'offer') {
+            const accept = confirm(`${data.sender || 'Peer'} is calling you. Accept video call?`);
+            if (!accept) return;
+
+            callModal.style.display = 'flex';
+            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            localVideo.srcObject = localStream;
+
+            peerConnection = new RTCPeerConnection(RTC_CONFIG);
+            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+            peerConnection.ontrack = (event) => {
+              if (event.streams && event.streams[0]) {
+                remoteVideo.srcObject = event.streams[0];
+                remoteVideoLabel.textContent = `${data.sender || 'Peer'} (Encrypted)`;
+              }
+            };
+
+            peerConnection.onicecandidate = (event) => {
+              if (event.candidate) {
+                sendEncryptedMessage({
+                  type: 'webrtc_signal',
+                  signal: { candidate: event.candidate }
+                });
+              }
+            };
+
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+
+            sendEncryptedMessage({
+              type: 'webrtc_signal',
+              signal: { sdp: peerConnection.localDescription }
+            });
+          } else if (signal.sdp.type === 'answer') {
+            if (peerConnection) {
+              await peerConnection.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+            }
+          }
+        } else if (signal.candidate) {
+          if (peerConnection) {
+            await peerConnection.addIceCandidate(new RTCIceCandidate(signal.candidate));
+          }
+        }
+      } catch (err) {
+        console.error('WebRTC Signaling error:', err);
+      }
+    }
+
+    function terminateVideoCall() {
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+      }
+      if (peerConnection) {
+        peerConnection.close();
+        peerConnection = null;
+      }
+      localVideo.srcObject = null;
+      remoteVideo.srcObject = null;
+      callModal.style.display = 'none';
+    }
+
+    // ==========================================
+    // 7. PANIC WIPE & ZERO-TRACE RESIDENTIAL CLEANUP
+    // ==========================================
+
+    function triggerPanicWipe() {
+      // 1. Terminate all active streams and calls
+      terminateVideoCall();
+      if (isMediaRecording) stopAudioRecording();
+
+      // 2. Disconnect socket
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+        reconnectTimeout = null;
+      }
+      if (socket) {
+        socket.onclose = null;
+        socket.close();
+        socket = null;
+      }
+
+      // 3. Nullify memory keys & cryptographic state
+      derivedAesKey = null;
+      authGateHash = null;
+
+      // 4. Wipe DOM messages
+      messagesViewport.innerHTML = `
+        <div class="system-notice">
+          ⚠️ <strong>Memory Wiped:</strong> Local encryption keys have been expunged from memory and connection severed.
+        </div>
+      `;
+
+      // 5. Restore Auth Gateway
+      authOverlay.style.display = 'flex';
+      document.getElementById('room-passcode').value = '';
+      authSubmitBtn.disabled = false;
+      authBtnText.textContent = 'Derive Keys & Connect';
+      updateConnectionStatus('disconnected');
+    }
+
+    // ==========================================
+    // 8. AUTHENTICATION & INITIALIZATION
+    // ==========================================
+
+    async function handleAuthSubmit(event) {
+      event.preventDefault();
+      authError.style.display = 'none';
+
+      const passInput = document.getElementById('room-passcode').value.trim();
+      const aliasInput = document.getElementById('user-alias').value.trim();
+
+      if (!passInput) return;
+
+      if (aliasInput) {
+        myAlias = aliasInput;
+      }
+      headerAlias.textContent = `Alias: ${myAlias}`;
+
+      authSubmitBtn.disabled = true;
+      authBtnText.textContent = 'Deriving 256-bit AES Key (PBKDF2)...';
+
+      try {
+        const keys = await deriveCryptoKeys(passInput);
+        authGateHash = keys.authHash;
+        derivedAesKey = keys.aesKey;
+
+        // Hide overlay and initialize connection
+        authOverlay.style.display = 'none';
+        connectWebSocket();
+      } catch (err) {
+        showAuthError('Cryptographic derivation failed: ' + err.message);
+        authSubmitBtn.disabled = false;
+        authBtnText.textContent = 'Derive Keys & Connect';
+      }
+    }
+
+    function showAuthError(msg) {
+      authError.textContent = msg;
+      authError.style.display = 'block';
+    }
+
+    // Startup check
+    window.addEventListener('DOMContentLoaded', () => {
+      applyWebRTCStrategy();
+    });
+  </script>
+</body>
+</html>
+

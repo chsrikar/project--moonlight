@@ -1,0 +1,16 @@
+{
+  "name": "project--moonlight",
+  "version": "2.0.0",
+  "description": "24/7 Ephemeral, Zero-Log, Tor-Tolerant E2EE Chat Application",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test-verification.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
