@@ -893,7 +893,7 @@
 <body>
 
   <!-- Hidden Remote Audio Element for reliable sound in audio and video calls -->
-  <audio id="remote-audio" autoplay></audio>
+  <audio id="remote-audio" autoplay playsinline webkit-playsinline></audio>
 
   <!-- In-Page Non-blocking Incoming Call Banner -->
   <div id="incoming-call-banner">
@@ -1050,11 +1050,11 @@
     <!-- Video Calling View -->
     <div class="video-grid" id="video-call-grid">
       <div class="video-card">
-        <video id="local-video" autoplay playsinline muted></video>
+        <video id="local-video" autoplay playsinline webkit-playsinline muted></video>
         <div class="video-label">You</div>
       </div>
       <div class="video-card">
-        <video id="remote-video" autoplay playsinline></video>
+        <video id="remote-video" autoplay playsinline webkit-playsinline></video>
         <div class="video-label" id="remote-video-label">Connecting...</div>
       </div>
     </div>
@@ -1124,20 +1124,39 @@
     // WebRTC Cross-Network State
     let peerConnection = null;
     let localStream = null;
+    let remoteStream = null;
     let iceCandidateQueue = [];
 
-    // Redundant High-Grade STUN Servers
-    const RTC_CONFIG = {
+    // Redundant High-Grade Multi-Port STUN Servers
+    let RTC_CONFIG = {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
         { urls: 'stun:stun2.l.google.com:19302' },
         { urls: 'stun:stun3.l.google.com:19302' },
+        { urls: 'stun:stun4.l.google.com:19302' },
         { urls: 'stun:stun.cloudflare.com:3478' },
-        { urls: 'stun:stun.services.mozilla.com:3478' }
-      ],
-      iceCandidatePoolSize: 10
+        { urls: 'stun:stun.sipgate.net:3478' },
+        { urls: 'stun:stun.relay.metered.ca:80' }
+      ]
     };
+
+    // Dynamically retrieve configured ICE / TURN servers from server if available
+    fetch('/api/ice-servers')
+      .then(res => res.json())
+      .then(data => {
+        if (data && Array.isArray(data.iceServers) && data.iceServers.length > 0) {
+          RTC_CONFIG.iceServers = data.iceServers;
+        }
+      })
+      .catch(() => {});
+
+    function getOrCreateRemoteStream() {
+      if (!remoteStream) {
+        remoteStream = new MediaStream();
+      }
+      return remoteStream;
+    }
 
     // DOM Elements
     const authOverlay = document.getElementById('auth-overlay');
@@ -1763,25 +1782,68 @@
 
     function setupPeerConnectionListeners() {
       peerConnection.ontrack = (event) => {
-        if (event.streams && event.streams[0]) {
-          const stream = event.streams[0];
-          // Always route audio to remoteAudio element
-          remoteAudio.srcObject = stream;
-          if (currentCallType === 'video') {
-            remoteVideo.srcObject = stream;
-            remoteVideoLabel.textContent = 'Remote Peer (Live)';
-          } else {
-            audioCallStatus.textContent = 'Connected (Encrypted Voice)';
+        const stream = getOrCreateRemoteStream();
+
+        // 1. Unified Plan track binding: ensure incoming tracks are attached to the stream
+        if (event.track) {
+          if (!stream.getTracks().some(t => t.id === event.track.id)) {
+            stream.addTrack(event.track);
           }
-          startCallTimer();
         }
+        if (event.streams && event.streams[0]) {
+          event.streams[0].getTracks().forEach(t => {
+            if (!stream.getTracks().some(existing => existing.id === t.id)) {
+              stream.addTrack(t);
+            }
+          });
+        }
+
+        // 2. Element attachment & browser autoplay trigger
+        if (currentCallType === 'video') {
+          if (remoteVideo.srcObject !== stream) {
+            remoteVideo.srcObject = stream;
+          }
+          remoteVideo.muted = false;
+          remoteVideo.volume = 1.0;
+          const vPlay = remoteVideo.play();
+          if (vPlay !== undefined) {
+            vPlay.catch(e => console.warn('remoteVideo.play() note:', e));
+          }
+
+          // Ensure audio track also plays through remoteAudio element for maximum mobile compatibility
+          if (remoteAudio.srcObject !== stream) {
+            remoteAudio.srcObject = stream;
+          }
+          remoteAudio.muted = false;
+          remoteAudio.volume = 1.0;
+          const aPlay = remoteAudio.play();
+          if (aPlay !== undefined) {
+            aPlay.catch(e => console.warn('remoteAudio.play() note:', e));
+          }
+
+          remoteVideoLabel.textContent = 'Remote Peer (Live)';
+        } else {
+          // Dedicated Voice Call
+          if (remoteAudio.srcObject !== stream) {
+            remoteAudio.srcObject = stream;
+          }
+          remoteAudio.muted = false;
+          remoteAudio.volume = 1.0;
+          const aPlay = remoteAudio.play();
+          if (aPlay !== undefined) {
+            aPlay.catch(e => console.warn('remoteAudio.play() note:', e));
+          }
+
+          audioCallStatus.textContent = 'Connected (Encrypted Voice)';
+        }
+        startCallTimer();
       };
 
       peerConnection.onicecandidate = (event) => {
-        if (event.candidate && activeCallPeerId) {
+        if (event.candidate && event.candidate.candidate && event.candidate.candidate.trim() !== '' && activeCallPeerId) {
           sendEncryptedMessage({
             type: 'webrtc_signal',
-            signal: { candidate: event.candidate }
+            signal: { candidate: event.candidate.toJSON ? event.candidate.toJSON() : event.candidate }
           }, activeCallPeerId);
         }
       };
@@ -1789,14 +1851,22 @@
       peerConnection.oniceconnectionstatechange = () => {
         const state = peerConnection.iceConnectionState;
         if (state === 'checking') {
-          updateCallStatusDisplay('Negotiating connection...');
+          updateCallStatusDisplay('Connecting...');
         } else if (state === 'connected' || state === 'completed') {
-          updateCallStatusDisplay('Connected (Encrypted)');
+          updateCallStatusDisplay(currentCallType === 'video' ? 'Remote Peer (Live)' : 'Connected (Encrypted Voice)');
         } else if (state === 'disconnected') {
-          // In WebRTC, 'disconnected' can be transient (NAT re-route); do not kill call immediately
-          updateCallStatusDisplay('Network blip... Reconnecting');
+          updateCallStatusDisplay('Reconnecting...');
         } else if (state === 'failed') {
-          updateCallStatusDisplay('Connection failed (Firewall/NAT blocked)');
+          updateCallStatusDisplay('Connection Failed (Symmetric NAT/UDP blocked)');
+        }
+      };
+
+      peerConnection.onconnectionstatechange = () => {
+        const state = peerConnection.connectionState;
+        if (state === 'connected') {
+          updateCallStatusDisplay(currentCallType === 'video' ? 'Remote Peer (Live)' : 'Connected (Encrypted Voice)');
+        } else if (state === 'failed') {
+          updateCallStatusDisplay('Connection Failed (Symmetric NAT/UDP blocked)');
         }
       };
     }
@@ -1810,10 +1880,12 @@
     }
 
     async function drainCandidateQueue() {
+      if (!peerConnection || !peerConnection.remoteDescription) return;
       while (iceCandidateQueue.length > 0) {
         const cand = iceCandidateQueue.shift();
+        if (!cand || !cand.candidate || cand.candidate.trim() === '') continue;
         try {
-          await peerConnection.addIceCandidate(new RTCIceCandidate(cand));
+          await peerConnection.addIceCandidate(cand);
         } catch (e) {
           console.warn('Queued candidate error:', e);
         }
@@ -1825,9 +1897,21 @@
       activeCallPeerId = targetId;
       currentCallType = type;
       iceCandidateQueue = [];
+      remoteStream = null;
       isCallMuted = false;
       btnToggleMic.classList.remove('muted');
       btnMicText.textContent = 'Mute';
+
+      // Prime audio playback under user gesture to unlock mobile autoplay restrictions
+      try {
+        remoteAudio.muted = false;
+        const primeA = remoteAudio.play();
+        if (primeA !== undefined) primeA.catch(() => {});
+        if (type === 'video') {
+          const primeV = remoteVideo.play();
+          if (primeV !== undefined) primeV.catch(() => {});
+        }
+      } catch (_) {}
 
       callModal.style.display = 'flex';
 
@@ -1844,12 +1928,13 @@
 
       try {
         const constraints = type === 'video'
-          ? { video: true, audio: true }
+          ? { video: { facingMode: 'user' }, audio: true }
           : { video: false, audio: true };
 
         localStream = await navigator.mediaDevices.getUserMedia(constraints);
         if (type === 'video') {
           localVideo.srcObject = localStream;
+          localVideo.play().catch(() => {});
         }
 
         peerConnection = new RTCPeerConnection(RTC_CONFIG);
@@ -1895,10 +1980,17 @@
             }
           }
         } else if (signal.candidate) {
-          if (peerConnection && peerConnection.remoteDescription && peerConnection.remoteDescription.type) {
-            await peerConnection.addIceCandidate(new RTCIceCandidate(signal.candidate));
-          } else {
-            iceCandidateQueue.push(signal.candidate);
+          const cand = signal.candidate;
+          if (cand && cand.candidate && cand.candidate.trim() !== '') {
+            if (peerConnection && peerConnection.remoteDescription && peerConnection.localDescription) {
+              try {
+                await peerConnection.addIceCandidate(cand);
+              } catch (e) {
+                console.warn('Failed to add live ICE candidate:', e);
+              }
+            } else {
+              iceCandidateQueue.push(cand);
+            }
           }
         }
       } catch (err) {
@@ -1910,8 +2002,20 @@
       incomingCallBanner.style.display = 'none';
       if (!pendingOfferData || !activeCallPeerId) return;
 
+      // Prime audio playback under user gesture to unlock mobile autoplay restrictions
+      try {
+        remoteAudio.muted = false;
+        const primeA = remoteAudio.play();
+        if (primeA !== undefined) primeA.catch(() => {});
+        if (currentCallType === 'video') {
+          const primeV = remoteVideo.play();
+          if (primeV !== undefined) primeV.catch(() => {});
+        }
+      } catch (_) {}
+
       callModal.style.display = 'flex';
       isCallMuted = false;
+      remoteStream = null;
       btnToggleMic.classList.remove('muted');
       btnMicText.textContent = 'Mute';
 
@@ -1928,12 +2032,13 @@
 
       try {
         const constraints = currentCallType === 'video'
-          ? { video: true, audio: true }
+          ? { video: { facingMode: 'user' }, audio: true }
           : { video: false, audio: true };
 
         localStream = await navigator.mediaDevices.getUserMedia(constraints);
         if (currentCallType === 'video') {
           localVideo.srcObject = localStream;
+          localVideo.play().catch(() => {});
         }
 
         peerConnection = new RTCPeerConnection(RTC_CONFIG);
@@ -1942,7 +2047,6 @@
         localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
         await peerConnection.setRemoteDescription(new RTCSessionDescription(pendingOfferData));
-        await drainCandidateQueue();
 
         const answer = await peerConnection.createAnswer();
         await peerConnection.setLocalDescription(answer);
@@ -1952,6 +2056,9 @@
           callType: currentCallType,
           signal: { sdp: peerConnection.localDescription }
         }, activeCallPeerId);
+
+        // Drain queued candidates ONLY after answer is set and connection is stable
+        await drainCandidateQueue();
 
         pendingOfferData = null;
       } catch (err) {
@@ -1968,20 +2075,32 @@
 
     function terminateVideoCall() {
       clearInterval(callTimerInterval);
+      callTimerInterval = null;
       if (localStream) {
         localStream.getTracks().forEach(track => track.stop());
         localStream = null;
       }
+      if (remoteStream) {
+        remoteStream.getTracks().forEach(track => track.stop());
+        remoteStream = null;
+      }
       if (peerConnection) {
+        peerConnection.ontrack = null;
+        peerConnection.onicecandidate = null;
+        peerConnection.oniceconnectionstatechange = null;
+        peerConnection.onconnectionstatechange = null;
         peerConnection.close();
         peerConnection = null;
       }
       iceCandidateQueue = [];
       activeCallPeerId = null;
       pendingOfferData = null;
+      currentCallType = null;
       localVideo.srcObject = null;
       remoteVideo.srcObject = null;
       remoteAudio.srcObject = null;
+      try { remoteAudio.pause(); } catch (_) {}
+      try { remoteVideo.pause(); } catch (_) {}
       callModal.style.display = 'none';
       incomingCallBanner.style.display = 'none';
     }

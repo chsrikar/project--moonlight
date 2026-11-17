@@ -230,6 +230,27 @@ async function runTests() {
     }
   });
 
+  // Test 5: Verify WebRTC ICE configuration endpoint
+  console.log('\n[Test 5] Verifying WebRTC ICE Server Configuration Endpoint (/api/ice-servers)...');
+  await new Promise((resolve, reject) => {
+    http.get(`http://localhost:${PORT}/api/ice-servers`, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          const parsed = JSON.parse(data);
+          if (!Array.isArray(parsed.iceServers) || parsed.iceServers.length === 0) {
+            return reject(new Error('Invalid iceServers response'));
+          }
+          console.log(`  ✔ Returned ${parsed.iceServers.length} verified STUN/TURN servers.`);
+          resolve();
+        } catch (e) {
+          reject(e);
+        }
+      });
+    }).on('error', reject);
+  });
+
   console.log('\n✔ ALL TESTS PASSED SUCCESSFULLY!\n');
   process.exit(0);
 }

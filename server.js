@@ -57,6 +57,37 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // Robust STUN/TURN server configuration endpoint for WebRTC cross-network traversal
+  if (req.url === '/api/ice-servers') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    let iceServers = [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:stun3.l.google.com:19302' },
+      { urls: 'stun:stun4.l.google.com:19302' },
+      { urls: 'stun:stun.cloudflare.com:3478' },
+      { urls: 'stun:stun.sipgate.net:3478' },
+      { urls: 'stun:stun.relay.metered.ca:80' }
+    ];
+
+    if (process.env.TURN_CONFIG) {
+      try {
+        const custom = JSON.parse(process.env.TURN_CONFIG);
+        if (Array.isArray(custom)) iceServers = custom;
+      } catch (_) {}
+    } else if (process.env.TURN_URLS) {
+      iceServers.push({
+        urls: process.env.TURN_URLS.split(',').map(u => u.trim()),
+        username: process.env.TURN_USERNAME || '',
+        credential: process.env.TURN_CREDENTIAL || ''
+      });
+    }
+
+    res.end(JSON.stringify({ iceServers }));
+    return;
+  }
+
   let safePath = req.url.split('?')[0];
   if (safePath === '/' || safePath === '') {
     safePath = '/index.html';
