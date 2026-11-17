@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#07090e">
   <title>MOONLIGHT // Zero-Trace Ephemeral Network</title>
   <style>
     :root {
@@ -27,6 +30,7 @@
       margin: 0;
       padding: 0;
       -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
     }
 
     body {
@@ -34,9 +38,11 @@
       color: var(--text-main);
       font-family: var(--font-stack);
       height: 100vh;
+      height: 100dvh;
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      touch-action: manipulation;
     }
 
     /* SVG Icon utility */
@@ -50,48 +56,46 @@
       stroke-linejoin: round;
       vertical-align: middle;
       display: inline-block;
+      flex-shrink: 0;
     }
 
     /* Security Context Notice Banner */
     #security-warning-banner {
       background: #78350f;
       color: #fef3c7;
-      padding: 8px 16px;
-      font-size: 12px;
+      padding: 6px 12px;
+      font-size: 11px;
       display: none;
       align-items: center;
       justify-content: space-between;
       border-bottom: 1px solid #b45309;
       flex-shrink: 0;
-      line-height: 1.4;
-    }
-
-    #security-warning-banner a {
-      color: #fff;
-      font-weight: 600;
-      text-decoration: underline;
+      line-height: 1.3;
     }
 
     /* Auth Gateway Overlay */
     #auth-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(7, 9, 14, 0.95);
+      background: rgba(7, 9, 14, 0.96);
       backdrop-filter: blur(8px);
       z-index: 1000;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 20px;
+      padding: 16px;
+      padding-top: max(16px, env(safe-area-inset-top));
+      padding-bottom: max(16px, env(safe-area-inset-bottom));
+      overflow-y: auto;
     }
 
     .auth-card {
       background: var(--bg-surface);
       border: 1px solid var(--border-subtle);
-      border-radius: 12px;
-      padding: 32px;
+      border-radius: 14px;
+      padding: 28px 24px;
       width: 100%;
-      max-width: 440px;
+      max-width: 420px;
       box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
     }
 
@@ -99,7 +103,7 @@
       display: flex;
       align-items: center;
       gap: 12px;
-      margin-bottom: 24px;
+      margin-bottom: 20px;
     }
 
     .brand-logo {
@@ -113,36 +117,37 @@
       color: #000;
       font-weight: 800;
       font-size: 18px;
+      flex-shrink: 0;
     }
 
     .brand-title {
-      font-size: 18px;
+      font-size: 17px;
       font-weight: 700;
-      letter-spacing: 1px;
+      letter-spacing: 0.8px;
       color: #fff;
     }
 
     .brand-subtitle {
-      font-size: 11px;
+      font-size: 10px;
       color: var(--accent-cyan);
       text-transform: uppercase;
-      letter-spacing: 1.5px;
+      letter-spacing: 1.2px;
     }
 
     .auth-description {
-      font-size: 13px;
+      font-size: 12px;
       color: var(--text-muted);
       line-height: 1.5;
-      margin-bottom: 24px;
+      margin-bottom: 20px;
     }
 
     .form-group {
-      margin-bottom: 18px;
+      margin-bottom: 16px;
     }
 
     .form-group label {
       display: block;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.5px;
@@ -157,7 +162,7 @@
       border-radius: 8px;
       padding: 12px 14px;
       color: #fff;
-      font-size: 14px;
+      font-size: 16px; /* 16px prevents iOS Safari auto-zoom */
       font-family: inherit;
       outline: none;
       transition: border-color 0.2s;
@@ -174,7 +179,7 @@
       border-radius: 8px;
       padding: 14px;
       color: #fff;
-      font-size: 14px;
+      font-size: 15px;
       font-weight: 600;
       cursor: pointer;
       display: flex;
@@ -182,6 +187,7 @@
       justify-content: center;
       gap: 8px;
       transition: opacity 0.2s;
+      user-select: none;
     }
 
     .auth-btn:hover {
@@ -210,22 +216,26 @@
     header {
       background: var(--bg-surface);
       border-bottom: 1px solid var(--border-subtle);
-      padding: 12px 20px;
+      padding: 10px 16px;
+      padding-top: max(10px, env(safe-area-inset-top));
       display: flex;
       align-items: center;
       justify-content: space-between;
       flex-shrink: 0;
+      gap: 10px;
     }
 
     .header-left {
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 12px;
+      min-width: 0;
     }
 
     .channel-meta {
       display: flex;
       flex-direction: column;
+      min-width: 0;
     }
 
     .channel-name {
@@ -233,31 +243,36 @@
       font-weight: 700;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
+      white-space: nowrap;
     }
 
     .channel-sub {
       font-size: 11px;
       color: var(--text-dim);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .header-badges {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
       flex-wrap: wrap;
     }
 
     .badge {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
       font-size: 11px;
       font-weight: 600;
-      padding: 4px 10px;
+      padding: 3px 8px;
       border-radius: 20px;
       border: 1px solid transparent;
       user-select: none;
+      white-space: nowrap;
     }
 
     .badge-e2ee {
@@ -293,21 +308,23 @@
     .header-actions {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
+      flex-shrink: 0;
     }
 
     .btn-header {
       background: var(--bg-surface-elevated);
       border: 1px solid var(--border-subtle);
       color: var(--text-muted);
-      border-radius: 6px;
-      padding: 6px 12px;
+      border-radius: 8px;
+      padding: 7px 11px;
       font-size: 12px;
       cursor: pointer;
       display: flex;
       align-items: center;
       gap: 6px;
       transition: all 0.2s;
+      user-select: none;
     }
 
     .btn-header:hover {
@@ -338,17 +355,18 @@
     #messages-viewport {
       flex: 1;
       overflow-y: auto;
-      padding: 20px;
+      padding: 16px;
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 12px;
       scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
     }
 
     .msg-wrapper {
       display: flex;
       flex-direction: column;
-      max-width: 75%;
+      max-width: 80%;
     }
 
     .msg-wrapper.mine {
@@ -364,9 +382,9 @@
     .msg-header {
       font-size: 11px;
       color: var(--text-dim);
-      margin-bottom: 4px;
+      margin-bottom: 3px;
       display: flex;
-      gap: 8px;
+      gap: 6px;
       align-items: center;
     }
 
@@ -380,10 +398,10 @@
     }
 
     .msg-bubble {
-      padding: 10px 14px;
+      padding: 9px 13px;
       border-radius: 12px;
       font-size: 14px;
-      line-height: 1.5;
+      line-height: 1.45;
       word-break: break-word;
       position: relative;
     }
@@ -392,27 +410,28 @@
       background: var(--bg-surface-elevated);
       border: 1px solid var(--border-subtle);
       color: var(--text-main);
-      border-bottom-left-radius: 2px;
+      border-bottom-left-radius: 3px;
     }
 
     .msg-wrapper.mine .msg-bubble {
-      background: #0369a1;
+      background: #0284c7;
       color: #ffffff;
-      border-bottom-right-radius: 2px;
+      border-bottom-right-radius: 3px;
     }
 
     .msg-image {
-      max-width: 320px;
-      max-height: 320px;
+      max-width: 100%;
+      max-height: 280px;
       border-radius: 8px;
       display: block;
       cursor: pointer;
-      object-fit: cover;
+      object-fit: contain;
     }
 
     .msg-audio {
-      width: 260px;
-      height: 40px;
+      max-width: 100%;
+      width: 230px;
+      height: 38px;
       outline: none;
     }
 
@@ -422,28 +441,30 @@
       border: 1px solid rgba(51, 65, 85, 0.4);
       color: var(--text-muted);
       font-size: 12px;
-      padding: 6px 14px;
+      padding: 6px 12px;
       border-radius: 16px;
-      margin: 8px 0;
+      margin: 6px 0;
       text-align: center;
-      max-width: 90%;
+      max-width: 92%;
+      line-height: 1.4;
     }
 
     /* Input & Action Bar */
     footer {
       background: var(--bg-surface);
       border-top: 1px solid var(--border-subtle);
-      padding: 14px 20px;
+      padding: 10px 14px;
+      padding-bottom: max(10px, env(safe-area-inset-bottom));
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 8px;
       flex-shrink: 0;
     }
 
     .input-row {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
 
     .action-btn {
@@ -459,6 +480,7 @@
       cursor: pointer;
       transition: all 0.2s;
       flex-shrink: 0;
+      user-select: none;
     }
 
     .action-btn:hover {
@@ -484,11 +506,12 @@
       background: var(--bg-input);
       border: 1px solid var(--border-subtle);
       border-radius: 8px;
-      padding: 10px 14px;
+      padding: 10px 12px;
       color: #fff;
-      font-size: 14px;
+      font-size: 16px; /* 16px prevents iOS Safari auto-zoom */
       font-family: inherit;
       outline: none;
+      min-width: 0;
     }
 
     #text-input:focus {
@@ -510,19 +533,19 @@
     #call-modal {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.88);
+      background: rgba(0, 0, 0, 0.92);
       backdrop-filter: blur(10px);
       z-index: 500;
       display: none;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 20px;
+      padding: 16px;
     }
 
     .video-grid {
       display: flex;
-      gap: 20px;
+      gap: 16px;
       max-width: 900px;
       width: 100%;
       justify-content: center;
@@ -547,17 +570,18 @@
 
     .video-label {
       position: absolute;
-      bottom: 12px;
-      left: 12px;
+      bottom: 10px;
+      left: 10px;
       background: rgba(0, 0, 0, 0.7);
       padding: 4px 8px;
       border-radius: 4px;
-      font-size: 12px;
+      font-size: 11px;
       color: #fff;
+      backdrop-filter: blur(4px);
     }
 
     .call-controls {
-      margin-top: 24px;
+      margin-top: 20px;
       display: flex;
       gap: 16px;
     }
@@ -572,6 +596,7 @@
       align-items: center;
       gap: 8px;
       border: none;
+      user-select: none;
     }
 
     .call-btn.end {
@@ -583,27 +608,154 @@
     #lightbox-modal {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.9);
+      background: rgba(0, 0, 0, 0.94);
       z-index: 800;
       display: none;
       align-items: center;
       justify-content: center;
       cursor: zoom-out;
-      padding: 20px;
+      padding: 16px;
     }
 
     #lightbox-img {
-      max-width: 95%;
+      max-width: 98%;
       max-height: 95%;
       border-radius: 8px;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
     }
 
-    /* Responsive */
+    /* ==========================================
+       MOBILE RESPONSIVE BREAKPOINTS (<= 640px)
+       ========================================== */
     @media (max-width: 640px) {
-      .header-badges { display: none; }
-      .msg-wrapper { max-width: 90%; }
-      .video-card { width: 100%; height: 240px; }
+      header {
+        padding: 8px 12px;
+        padding-top: max(8px, env(safe-area-inset-top));
+        gap: 6px;
+      }
+
+      .channel-name {
+        font-size: 13px;
+        gap: 4px;
+      }
+
+      .channel-sub {
+        font-size: 10px;
+      }
+
+      .badge-label,
+      .btn-label {
+        display: none; /* Hide button text to keep clean icon-only layout on mobile */
+      }
+
+      .btn-header {
+        padding: 6px 9px;
+      }
+
+      /* Compact horizontal badges bar on mobile */
+      .header-badges {
+        display: flex;
+        overflow-x: auto;
+        white-space: nowrap;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+        gap: 5px;
+        max-width: 140px;
+      }
+      .header-badges::-webkit-scrollbar {
+        display: none;
+      }
+
+      .badge {
+        font-size: 10px;
+        padding: 2px 7px;
+        flex-shrink: 0;
+      }
+
+      #messages-viewport {
+        padding: 12px 10px;
+        gap: 10px;
+      }
+
+      .msg-wrapper {
+        max-width: 88%;
+      }
+
+      .msg-bubble {
+        padding: 8px 11px;
+        font-size: 14px;
+      }
+
+      .msg-audio {
+        width: 190px;
+        height: 36px;
+      }
+
+      footer {
+        padding: 8px 10px;
+        padding-bottom: max(10px, env(safe-area-inset-bottom));
+        gap: 6px;
+      }
+
+      .action-btn {
+        width: 38px;
+        height: 38px;
+      }
+
+      #text-input {
+        padding: 8px 10px;
+        font-size: 16px; /* Essential to prevent iOS Safari auto-zoom */
+      }
+
+      .auth-card {
+        padding: 22px 18px;
+        max-width: 95%;
+      }
+
+      /* Mobile Video Call: Native PiP Experience */
+      #call-modal {
+        padding: 10px;
+        padding-top: max(10px, env(safe-area-inset-top));
+        padding-bottom: max(10px, env(safe-area-inset-bottom));
+      }
+
+      .video-grid {
+        position: relative;
+        width: 100%;
+        height: 75vh;
+        height: 75dvh;
+        max-height: 580px;
+        display: block;
+      }
+
+      .video-card:first-child {
+        /* Local PiP camera in top-right corner */
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        width: 95px;
+        height: 130px;
+        z-index: 10;
+        border: 2px solid rgba(255, 255, 255, 0.4);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.7);
+        border-radius: 10px;
+      }
+
+      .video-card:last-child {
+        /* Remote main video takes full frame */
+        width: 100%;
+        height: 100%;
+        border-radius: 12px;
+      }
+
+      .call-controls {
+        margin-top: 16px;
+      }
+
+      .call-btn {
+        padding: 10px 22px;
+        font-size: 13px;
+      }
     }
   </style>
 </head>
@@ -639,7 +791,7 @@
         </div>
         <div class="form-group">
           <label for="server-address">Relay Host / Tunnel URL</label>
-          <input type="text" id="server-address" class="form-input" placeholder="Auto-detected (or paste your Render / Tunnel URL)">
+          <input type="text" id="server-address" class="form-input" placeholder="Auto-detected (or paste your Render URL)">
         </div>
         <button type="submit" id="auth-submit-btn" class="auth-btn">
           <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
@@ -655,10 +807,10 @@
     <div class="header-left">
       <div class="channel-meta">
         <div class="channel-name">
-          <span>MOONLIGHT ROOM</span>
+          <span>MOONLIGHT</span>
           <span class="badge badge-e2ee" title="End-to-End Encrypted: Web Crypto AES-256-GCM">
             <svg class="icon" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-            AES-256-GCM
+            <span class="badge-label">AES-256</span>
           </span>
         </div>
         <div class="channel-sub" id="header-alias">Connecting as Anon</div>
@@ -686,16 +838,16 @@
     </div>
 
     <div class="header-actions">
-      <!-- Video Call Trigger (Gracefully disabled in Tor) -->
-      <button class="btn-header" id="btn-video-call" onclick="initiateVideoCall()" title="Start Encrypted WebRTC Video Call (Cross-Network STUN/TURN)">
+      <!-- Video Call Trigger -->
+      <button class="btn-header" id="btn-video-call" onclick="initiateVideoCall()" title="Start Encrypted WebRTC Video Call">
         <svg class="icon" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
-        <span>Video Call</span>
+        <span class="btn-label">Video</span>
       </button>
 
       <!-- Panic / Wipe Session Button -->
       <button class="btn-header btn-panic" onclick="triggerPanicWipe()" title="Instant Session Wipe: Clear RAM, close socket, reset view">
         <svg class="icon" viewBox="0 0 24 24"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
-        <span>Wipe RAM</span>
+        <span class="btn-label">Wipe</span>
       </button>
     </div>
   </header>
@@ -724,7 +876,7 @@
       </button>
 
       <!-- Text Input -->
-      <input type="text" id="text-input" placeholder="Type an encrypted message... (Enter to send)" autocomplete="off">
+      <input type="text" id="text-input" placeholder="Type an encrypted message..." autocomplete="off">
 
       <!-- Send Button -->
       <button class="action-btn" id="send-btn" onclick="sendTextMessage()" title="Send">
@@ -738,12 +890,12 @@
     <img id="lightbox-img" src="" alt="Encrypted attachment">
   </div>
 
-  <!-- WEBRTC VIDEO CALL MODAL (Active only when WebRTC is supported) -->
+  <!-- WEBRTC VIDEO CALL MODAL -->
   <div id="call-modal">
     <div class="video-grid">
       <div class="video-card">
         <video id="local-video" autoplay playsinline muted></video>
-        <div class="video-label">Local Camera (You)</div>
+        <div class="video-label">You</div>
       </div>
       <div class="video-card">
         <video id="remote-video" autoplay playsinline></video>
@@ -762,7 +914,7 @@
     /**
      * MOONLIGHT CLIENT CORE
      * Web Crypto PBKDF2 + AES-256-GCM Implementation
-     * Cross-Network WAN / Tor Resilient WebSocket & WebRTC Client
+     * Mobile Optimized, WAN & Tor Resilient WebSocket / WebRTC Client
      */
 
     // State
@@ -784,9 +936,8 @@
     // WebRTC Cross-Network State
     let peerConnection = null;
     let localStream = null;
-    let iceCandidateQueue = []; // Essential for cross-network NAT candidate arrival before SDP description
+    let iceCandidateQueue = [];
 
-    // Robust STUN + TURN configuration for cross-network NAT/Firewall traversal
     const RTC_CONFIG = {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
@@ -868,13 +1019,11 @@
     async function deriveCryptoKeys(passcode) {
       const enc = new TextEncoder();
 
-      // 1. Server Auth Token (SHA-256 with domain separation)
       const authData = enc.encode('moonlight-auth-v1:' + passcode);
       const authDigest = await crypto.subtle.digest('SHA-256', authData);
       const authHash = Array.from(new Uint8Array(authDigest))
         .map(b => b.toString(16).padStart(2, '0')).join('');
 
-      // 2. Import passcode for PBKDF2
       const keyMaterial = await crypto.subtle.importKey(
         'raw',
         enc.encode(passcode),
@@ -885,7 +1034,6 @@
 
       const salt = enc.encode('moonlight-e2ee-aes-gcm-v1-salt');
 
-      // 3. Derive 256-bit AES-GCM Key (non-extractable)
       const aesKey = await crypto.subtle.deriveKey(
         {
           name: 'PBKDF2',
@@ -965,11 +1113,10 @@
       } else {
         btnVideoCall.style.display = 'flex';
         webrtcBadge.className = 'badge badge-tor';
-        webrtcBadgeText.textContent = 'WebRTC Video Ready';
+        webrtcBadgeText.textContent = 'Video Ready';
         webrtcBadge.title = 'WebRTC is active. Video calling will route peer-to-peer with STUN/TURN NAT traversal.';
       }
 
-      // Check for insecure context when accessing across different networks via plain HTTP
       if (!window.isSecureContext && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
         if (securityWarningBanner) {
           securityWarningBanner.style.display = 'flex';
@@ -994,7 +1141,6 @@
       let host = window.location.host;
       let protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 
-      // Fallback if index.html is opened directly from disk via file://
       if (!host || window.location.protocol === 'file:') {
         protocol = 'ws:';
         host = 'localhost:3000';
@@ -1102,7 +1248,7 @@
     function updateConnectionStatus(state) {
       if (state === 'connected') {
         connBadge.className = 'badge badge-status connected';
-        connText.textContent = 'Encrypted Tunnel Active';
+        connText.textContent = 'Active';
       } else if (state === 'connecting') {
         connBadge.className = 'badge badge-status';
         connText.textContent = 'Connecting...';
@@ -1158,7 +1304,7 @@
 
       const timeSpan = document.createElement('span');
       const d = new Date(data.timestamp || Date.now());
-      timeSpan.textContent = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      timeSpan.textContent = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
       header.appendChild(senderSpan);
       header.appendChild(timeSpan);
@@ -1323,7 +1469,7 @@
       peerConnection.ontrack = (event) => {
         if (event.streams && event.streams[0]) {
           remoteVideo.srcObject = event.streams[0];
-          remoteVideoLabel.textContent = 'Remote Peer (Live Stream)';
+          remoteVideoLabel.textContent = 'Remote Peer (Live)';
         }
       };
 
@@ -1341,11 +1487,11 @@
         if (state === 'checking') {
           remoteVideoLabel.textContent = 'Traversing NAT (STUN/TURN)...';
         } else if (state === 'connected' || state === 'completed') {
-          remoteVideoLabel.textContent = 'Connected (Encrypted P2P/TURN)';
+          remoteVideoLabel.textContent = 'Connected';
         } else if (state === 'failed') {
-          remoteVideoLabel.textContent = 'Connection Failed (Symmetric NAT/UDP blocked)';
+          remoteVideoLabel.textContent = 'NAT/UDP blocked';
         } else if (state === 'disconnected') {
-          remoteVideoLabel.textContent = 'Peer Disconnected';
+          remoteVideoLabel.textContent = 'Disconnected';
         }
       };
     }
@@ -1392,7 +1538,7 @@
           signal: { sdp: peerConnection.localDescription }
         });
 
-        remoteVideoLabel.textContent = 'Calling peer... (Signaling over encrypted WS)';
+        remoteVideoLabel.textContent = 'Calling peer...';
       } catch (err) {
         alert('Failed to initialize video call: ' + err.message);
         terminateVideoCall();
@@ -1439,11 +1585,9 @@
             }
           }
         } else if (signal.candidate) {
-          // Cross-Network ICE Candidate Buffering
           if (peerConnection && peerConnection.remoteDescription && peerConnection.remoteDescription.type) {
             await peerConnection.addIceCandidate(new RTCIceCandidate(signal.candidate));
           } else {
-            // Buffer candidate until remoteDescription is set
             iceCandidateQueue.push(signal.candidate);
           }
         }
