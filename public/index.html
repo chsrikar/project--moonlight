@@ -828,9 +828,173 @@
       color: #f87171;
     }
 
+    .call-btn.speaker {
+      background: var(--bg-surface-elevated);
+      color: var(--accent-cyan);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .call-btn.speaker.earpiece {
+      background: #334155;
+      color: #cbd5e1;
+      border-color: #475569;
+    }
+
+    .call-btn.chat-toggle {
+      background: var(--bg-surface-elevated);
+      color: #fff;
+      border: 1px solid var(--border-subtle);
+      position: relative;
+    }
+
+    .call-btn.chat-toggle.active {
+      background: rgba(6, 182, 212, 0.25);
+      border-color: var(--accent-cyan);
+      color: var(--accent-cyan);
+    }
+
     .call-btn.end {
       background: var(--accent-rose);
       color: #fff;
+    }
+
+    /* In-Call Live Chat Panel */
+    #in-call-chat-panel {
+      position: absolute;
+      right: 20px;
+      bottom: 85px;
+      width: 320px;
+      max-width: calc(100vw - 32px);
+      height: 280px;
+      max-height: 45vh;
+      background: rgba(14, 19, 29, 0.95);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      display: none;
+      flex-direction: column;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+      z-index: 520;
+      overflow: hidden;
+      animation: slideUpChat 0.25s ease-out;
+    }
+
+    @keyframes slideUpChat {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .in-call-chat-header {
+      padding: 8px 12px;
+      background: var(--bg-surface-elevated);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .in-call-chat-title {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .in-call-chat-close-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 14px;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .in-call-chat-close-btn:hover {
+      color: #fff;
+    }
+
+    .in-call-messages {
+      flex: 1;
+      padding: 10px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 13px;
+    }
+
+    .in-call-notice {
+      color: var(--text-dim);
+      font-size: 11px;
+      text-align: center;
+      padding: 4px 0;
+    }
+
+    .in-call-msg {
+      padding: 6px 10px;
+      border-radius: 8px;
+      max-width: 85%;
+      word-break: break-word;
+      line-height: 1.35;
+    }
+
+    .in-call-msg.mine {
+      align-self: flex-end;
+      background: var(--accent-cyan);
+      color: #000;
+      font-weight: 500;
+    }
+
+    .in-call-msg.theirs {
+      align-self: flex-start;
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      color: #fff;
+    }
+
+    .in-call-msg-sender {
+      font-size: 10px;
+      opacity: 0.75;
+      margin-bottom: 2px;
+      display: block;
+    }
+
+    .in-call-input-row {
+      display: flex;
+      padding: 8px;
+      gap: 6px;
+      background: var(--bg-surface-elevated);
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    #in-call-text-input {
+      flex: 1;
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 6px 10px;
+      color: #fff;
+      font-size: 13px;
+      outline: none;
+      min-width: 0;
+    }
+
+    #in-call-text-input:focus {
+      border-color: var(--accent-cyan);
+    }
+
+    .in-call-send-btn {
+      background: var(--accent-emerald);
+      color: #000;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-weight: 600;
+      font-size: 12px;
+      cursor: pointer;
     }
 
     /* Lightbox Modal */
@@ -1118,14 +1282,42 @@
       <div class="call-timer" id="audio-call-timer">00:00</div>
     </div>
 
+    <!-- In-Call Floating Live Chat Panel for Video & Voice Calls -->
+    <div id="in-call-chat-panel">
+      <div class="in-call-chat-header">
+        <div class="in-call-chat-title">
+          <svg class="icon" style="width:15px;height:15px;" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+          <span>Live In-Call Chat</span>
+        </div>
+        <button class="in-call-chat-close-btn" onclick="toggleInCallChat()" title="Hide chat">✕</button>
+      </div>
+      <div id="in-call-messages" class="in-call-messages">
+        <div class="in-call-notice">💬 Live chat during video & audio calls. Type below to chat!</div>
+      </div>
+      <div class="in-call-input-row">
+        <input type="text" id="in-call-text-input" placeholder="Type a message in call..." autocomplete="off">
+        <button class="in-call-send-btn" onclick="sendInCallTextMessage()">Send</button>
+      </div>
+    </div>
+
     <!-- Call Controls -->
     <div class="call-controls">
-      <button class="call-btn mute" id="btn-toggle-mic" onclick="toggleCallMicrophone()">
+      <button class="call-btn mute" id="btn-toggle-mic" onclick="toggleCallMicrophone()" title="Mute/Unmute Mic">
         <svg class="icon" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
         <span id="btn-mic-text">Mute</span>
       </button>
 
-      <button class="call-btn end" onclick="terminateVideoCall()">
+      <button class="call-btn speaker" id="btn-toggle-speaker" onclick="toggleSpeakerphone()" title="Toggle Speaker/Earpiece">
+        <svg class="icon" id="speaker-icon" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+        <span id="btn-speaker-text">Speaker: ON</span>
+      </button>
+
+      <button class="call-btn chat-toggle" id="btn-toggle-call-chat" onclick="toggleInCallChat()" title="Open In-Call Chat">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        <span id="btn-call-chat-text">Chat</span>
+      </button>
+
+      <button class="call-btn end" onclick="terminateVideoCall()" title="End Call">
         <svg class="icon" viewBox="0 0 24 24"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.09 9.91"></path><line x1="23" y1="1" x2="1" y2="23"></line></svg>
         <span>End Call</span>
       </button>
@@ -1177,6 +1369,8 @@
     let audioScriptProcessor = null;
     let audioInputSource = null;
     let zeroGain = null;
+    let callSpeakerGain = null;
+    let isSpeakerOn = true;
     let nextAudioPlayTime = 0;
 
     // Video Streaming State
@@ -1670,6 +1864,9 @@
     function handleIncomingDecryptedMessage(data, fromPeerId) {
       if (data.type === 'text' || data.type === 'image' || data.type === 'audio') {
         renderMessage(data, false);
+        if (data.type === 'text') {
+          renderInCallMessage(data.sender || 'Peer', data.text, false);
+        }
       } else if (data.type === 'call_invite') {
         handleIncomingCallInvite(data, fromPeerId);
       } else if (data.type === 'call_accepted') {
@@ -1753,6 +1950,8 @@
         type: 'text',
         text: text
       });
+
+      renderInCallMessage('You', text, true);
     }
 
     textInput.addEventListener('keydown', (e) => {
@@ -1761,6 +1960,16 @@
         sendTextMessage();
       }
     });
+
+    const inCallTextInput = document.getElementById('in-call-text-input');
+    if (inCallTextInput) {
+      inCallTextInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          sendInCallTextMessage();
+        }
+      });
+    }
 
     function handleImageSelected(event) {
       const file = event.target.files[0];
@@ -1868,8 +2077,8 @@
         return;
       }
 
-      if (otherPeers.length === 1) {
-        startCallWithPeer(otherPeers[0].id, otherPeers[0].alias, type);
+      if (type === 'video' && otherPeers.length === 1) {
+        startCallWithPeer(otherPeers[0].id, otherPeers[0].alias, 'video');
       } else {
         openPeerPicker(type);
       }
@@ -1888,7 +2097,8 @@
           item.innerHTML = `
             <span class="peer-item-name">${peer.alias}${roleTag}</span>
             <div class="peer-item-actions">
-              <button class="btn-peer-call btn-peer-audio" onclick="startCallWithPeer('${peer.id}', '${peer.alias}', 'audio')">📞 Audio</button>
+              <button class="btn-peer-call btn-peer-audio" onclick="startCallWithPeer('${peer.id}', '${peer.alias}', 'audio', true)" title="Loudspeaker Voice Call">📢 Speaker</button>
+              <button class="btn-peer-call btn-peer-audio" style="border-color:#38bdf8; color:#38bdf8; background:rgba(56, 189, 248, 0.1);" onclick="startCallWithPeer('${peer.id}', '${peer.alias}', 'audio', false)" title="Earpiece / Low-volume Mic Mode">📞 Earpiece</button>
               <button class="btn-peer-call btn-peer-video" onclick="startCallWithPeer('${peer.id}', '${peer.alias}', 'video')">📹 Video</button>
             </div>
           `;
@@ -1932,6 +2142,106 @@
         btnToggleMic.classList.remove('muted');
         btnMicText.textContent = 'Mute';
       }
+    }
+
+    // Speaker Gain Management (2.5x Loudspeaker vs 0.8x Earpiece)
+    function getSpeakerGainNode() {
+      const ctx = getAudioContext();
+      if (!ctx) return null;
+      if (!callSpeakerGain) {
+        callSpeakerGain = ctx.createGain();
+        callSpeakerGain.gain.setValueAtTime(isSpeakerOn ? 2.5 : 0.8, ctx.currentTime);
+        callSpeakerGain.connect(ctx.destination);
+      }
+      return callSpeakerGain;
+    }
+
+    function updateSpeakerButtonUI() {
+      const btn = document.getElementById('btn-toggle-speaker');
+      const text = document.getElementById('btn-speaker-text');
+      const icon = document.getElementById('speaker-icon');
+      if (!btn || !text) return;
+
+      if (isSpeakerOn) {
+        btn.classList.remove('earpiece');
+        btn.classList.add('speaker');
+        text.textContent = 'Speaker: ON';
+        if (icon) {
+          icon.innerHTML = '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>';
+        }
+      } else {
+        btn.classList.remove('speaker');
+        btn.classList.add('earpiece');
+        text.textContent = 'Earpiece: ON';
+        if (icon) {
+          icon.innerHTML = '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>';
+        }
+      }
+
+      if (callSpeakerGain && audioCtx) {
+        try {
+          callSpeakerGain.gain.setValueAtTime(isSpeakerOn ? 2.5 : 0.8, audioCtx.currentTime);
+        } catch (_) {}
+      }
+    }
+
+    function toggleSpeakerphone() {
+      isSpeakerOn = !isSpeakerOn;
+      updateSpeakerButtonUI();
+    }
+
+    // In-Call Live Chat Functions
+    function toggleInCallChat() {
+      const panel = document.getElementById('in-call-chat-panel');
+      const toggleBtn = document.getElementById('btn-toggle-call-chat');
+      if (!panel) return;
+      const isVisible = (panel.style.display === 'flex');
+      if (isVisible) {
+        panel.style.display = 'none';
+        if (toggleBtn) toggleBtn.classList.remove('active');
+      } else {
+        panel.style.display = 'flex';
+        if (toggleBtn) toggleBtn.classList.add('active');
+        const input = document.getElementById('in-call-text-input');
+        if (input) input.focus();
+        const msgBox = document.getElementById('in-call-messages');
+        if (msgBox) msgBox.scrollTop = msgBox.scrollHeight;
+      }
+    }
+
+    function sendInCallTextMessage() {
+      const input = document.getElementById('in-call-text-input');
+      if (!input) return;
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = '';
+
+      sendEncryptedMessage({
+        type: 'text',
+        text: text
+      });
+
+      renderInCallMessage('You', text, true);
+    }
+
+    function renderInCallMessage(sender, text, isMine) {
+      const msgBox = document.getElementById('in-call-messages');
+      if (!msgBox) return;
+
+      const bubble = document.createElement('div');
+      bubble.className = `in-call-msg ${isMine ? 'mine' : 'theirs'}`;
+
+      const senderTag = document.createElement('div');
+      senderTag.className = 'in-call-msg-sender';
+      senderTag.textContent = isMine ? 'You' : sender;
+
+      const textBody = document.createElement('div');
+      textBody.textContent = text;
+
+      bubble.appendChild(senderTag);
+      bubble.appendChild(textBody);
+      msgBox.appendChild(bubble);
+      msgBox.scrollTop = msgBox.scrollHeight;
     }
 
     function updateCallStatusDisplay(text) {
@@ -2010,14 +2320,8 @@
 
     function playIncomingLiveAudio(data) {
       if (!data || !data.data) return;
-      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-      if (!audioCtx || audioCtx.state === 'closed') {
-        if (AudioContextClass) audioCtx = new AudioContextClass();
-      }
-      if (audioCtx && audioCtx.state === 'suspended') {
-        audioCtx.resume().catch(() => {});
-      }
-      if (!audioCtx) return;
+      const ctx = getAudioContext();
+      if (!ctx) return;
 
       try {
         const arrayBuf = base64ToArrayBuffer(data.data);
@@ -2027,17 +2331,25 @@
           float32[i] = int16[i] / (int16[i] < 0 ? 0x8000 : 0x7FFF);
         }
 
-        const sr = data.sr || audioCtx.sampleRate || 44100;
-        const audioBuffer = audioCtx.createBuffer(1, float32.length, sr);
+        const sr = data.sr || ctx.sampleRate || 44100;
+        const audioBuffer = ctx.createBuffer(1, float32.length, sr);
         audioBuffer.getChannelData(0).set(float32);
 
-        const source = audioCtx.createBufferSource();
+        const source = ctx.createBufferSource();
         source.buffer = audioBuffer;
-        source.connect(audioCtx.destination);
 
-        const currentTime = audioCtx.currentTime;
-        if (nextAudioPlayTime < currentTime) {
-          nextAudioPlayTime = currentTime + 0.04;
+        // Route through high-gain speakerphone/earpiece gain node
+        const speakerGain = getSpeakerGainNode();
+        if (speakerGain) {
+          source.connect(speakerGain);
+        } else {
+          source.connect(ctx.destination);
+        }
+
+        const currentTime = ctx.currentTime;
+        // Fix jitter and prevent audio packets drifting seconds into future during video streaming
+        if (nextAudioPlayTime < currentTime || nextAudioPlayTime > currentTime + 0.10) {
+          nextAudioPlayTime = currentTime + 0.02;
         }
         source.start(nextAudioPlayTime);
         nextAudioPlayTime += audioBuffer.duration;
@@ -2061,6 +2373,7 @@
         offscreenCanvas = document.createElement('canvas');
       }
 
+      // Stream frames at ~7 fps (140ms) with 0.4 quality to preserve network & CPU for audio
       videoSendInterval = setInterval(() => {
         if (!activeCallPeerId || currentCallType !== 'video' || !localStream || !socket || socket.readyState !== WebSocket.OPEN) {
           return;
@@ -2072,14 +2385,14 @@
           offscreenCanvas.height = targetH;
           const ctx = offscreenCanvas.getContext('2d');
           ctx.drawImage(localVideo, 0, 0, targetW, targetH);
-          const frameData = offscreenCanvas.toDataURL('image/jpeg', 0.5);
+          const frameData = offscreenCanvas.toDataURL('image/jpeg', 0.4);
 
           sendEncryptedMessage({
             type: 'live_video',
             frame: frameData
           }, activeCallPeerId);
         }
-      }, 100);
+      }, 140);
     }
 
     function stopVideoStreaming() {
@@ -2246,10 +2559,12 @@
     // CALL SETUP, ACCEPTANCE & TEARDOWN PIPELINE
     // ========================================================
 
-    async function startCallWithPeer(targetId, targetAlias, type = 'video') {
+    async function startCallWithPeer(targetId, targetAlias, type = 'video', speakerMode = true) {
       closePeerPicker();
       activeCallPeerId = targetId;
       currentCallType = type;
+      isSpeakerOn = (speakerMode !== false);
+      updateSpeakerButtonUI();
       isCallMuted = false;
       btnToggleMic.classList.remove('muted');
       btnMicText.textContent = 'Mute';
@@ -2271,7 +2586,7 @@
         videoCallGrid.style.display = 'none';
         audioCallView.style.display = 'flex';
         audioCallerName.textContent = targetAlias;
-        audioCallStatus.textContent = 'Calling (Voice)...';
+        audioCallStatus.textContent = isSpeakerOn ? 'Calling (📢 Speaker)...' : 'Calling (📞 Earpiece)...';
       }
 
       try {
@@ -2301,7 +2616,8 @@
 
         sendEncryptedMessage({
           type: 'call_invite',
-          callType: type
+          callType: type,
+          speakerMode: isSpeakerOn
         }, targetId);
 
         updateCallStatusDisplay(`Ringing ${targetAlias}...`);
@@ -2318,10 +2634,12 @@
       pendingOfferData = {
         fromPeerId: activeCallPeerId,
         callType: currentCallType,
-        sender: data.sender || 'Peer'
+        sender: data.sender || 'Peer',
+        speakerMode: data.speakerMode !== false
       };
 
-      incomingCallTitle.textContent = currentCallType === 'video' ? 'Incoming Video Call' : 'Incoming Voice Call';
+      const modeTag = currentCallType === 'audio' ? (pendingOfferData.speakerMode ? ' (📢 Speaker)' : ' (📞 Earpiece)') : '';
+      incomingCallTitle.textContent = currentCallType === 'video' ? 'Incoming Video Call' : `Incoming Voice Call${modeTag}`;
       incomingCallerText.textContent = `${data.sender || 'Peer'} is calling you...`;
       incomingCallBanner.style.display = 'flex';
       startIncomingRingtone();
@@ -2334,6 +2652,8 @@
 
       const callType = pendingOfferData.callType;
       const peerId = pendingOfferData.fromPeerId;
+      isSpeakerOn = (pendingOfferData.speakerMode !== false);
+      updateSpeakerButtonUI();
 
       // Prime AudioContext under user tap gesture
       const ctx = getAudioContext();
@@ -2355,8 +2675,52 @@
         videoCallGrid.style.display = 'none';
         audioCallView.style.display = 'flex';
         audioCallerName.textContent = pendingOfferData.sender || 'Peer';
-        audioCallStatus.textContent = 'Connecting...';
+        audioCallStatus.textContent = isSpeakerOn ? 'Connecting (📢 Speaker)...' : 'Connecting (📞 Earpiece)...';
       }
+
+      try {
+        const audioConstraints = {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        };
+
+        const constraints = callType === 'video'
+          ? {
+              video: {
+                facingMode: 'user',
+                width: { ideal: 480 },
+                height: { ideal: 360 }
+              },
+              audio: audioConstraints
+            }
+          : { video: false, audio: audioConstraints };
+
+        localStream = await navigator.mediaDevices.getUserMedia(constraints);
+        if (callType === 'video') {
+          localVideo.srcObject = localStream;
+          localVideo.muted = true;
+          localVideo.play().catch(() => {});
+        }
+
+        sendEncryptedMessage({
+          type: 'call_accepted',
+          callType: callType
+        }, peerId);
+
+        startAudioCapture(peerId);
+        if (callType === 'video') {
+          startVideoStreaming(peerId);
+        }
+
+        startCallTimer();
+        updateCallStatusDisplay(callType === 'video' ? 'Remote Peer (Live)' : 'Connected (Encrypted Voice)');
+        pendingOfferData = null;
+      } catch (err) {
+        alert('Failed to answer call: ' + err.message);
+        terminateVideoCall();
+      }
+    }
 
       try {
         const audioConstraints = {
@@ -2479,6 +2843,16 @@
 
       callModal.style.display = 'none';
       incomingCallBanner.style.display = 'none';
+
+      const inCallPanel = document.getElementById('in-call-chat-panel');
+      if (inCallPanel) inCallPanel.style.display = 'none';
+      const chatToggleBtn = document.getElementById('btn-toggle-call-chat');
+      if (chatToggleBtn) chatToggleBtn.classList.remove('active');
+
+      if (callSpeakerGain) {
+        try { callSpeakerGain.disconnect(); } catch (_) {}
+        callSpeakerGain = null;
+      }
     }
 
     // ==========================================
