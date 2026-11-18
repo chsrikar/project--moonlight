@@ -1151,7 +1151,7 @@
       <form id="auth-form" onsubmit="handleAuthSubmit(event)">
         <div class="form-group">
           <label for="room-passcode">Secret Room Passcode</label>
-          <input type="password" id="room-passcode" class="form-input" placeholder="e.g. mymoonlight1011" autocomplete="off" required autofocus>
+          <input type="password" id="room-passcode" class="form-input" placeholder="e.g. mymoonlight1011" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" required autofocus>
         </div>
         <div class="form-group">
           <label for="user-alias">Anonymous Codename</label>
@@ -1666,8 +1666,8 @@
       let protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 
       if (!host || window.location.protocol === 'file:') {
-        protocol = 'ws:';
-        host = 'localhost:3000';
+        protocol = 'wss:';
+        host = 'project-moonlight-z32k.onrender.com';
       }
 
       return `${protocol}//${host}`;
@@ -2722,50 +2722,6 @@
       }
     }
 
-      try {
-        const audioConstraints = {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
-        };
-
-        const constraints = callType === 'video'
-          ? {
-              video: {
-                facingMode: 'user',
-                width: { ideal: 480 },
-                height: { ideal: 360 }
-              },
-              audio: audioConstraints
-            }
-          : { video: false, audio: audioConstraints };
-
-        localStream = await navigator.mediaDevices.getUserMedia(constraints);
-        if (callType === 'video') {
-          localVideo.srcObject = localStream;
-          localVideo.muted = true;
-          localVideo.play().catch(() => {});
-        }
-
-        sendEncryptedMessage({
-          type: 'call_accepted',
-          callType: callType
-        }, peerId);
-
-        startAudioCapture(peerId);
-        if (callType === 'video') {
-          startVideoStreaming(peerId);
-        }
-
-        startCallTimer();
-        updateCallStatusDisplay(callType === 'video' ? 'Remote Peer (Live)' : 'Connected (Encrypted Voice)');
-        pendingOfferData = null;
-      } catch (err) {
-        alert('Failed to answer call: ' + err.message);
-        terminateVideoCall();
-      }
-    }
-
     function handleCallAccepted(data, fromPeerId) {
       stopAllRinging();
       if (!activeCallPeerId || activeCallPeerId !== fromPeerId) {
@@ -2897,11 +2853,13 @@
         </div>
       `;
       if (textInput) textInput.value = '';
-      const passInput = document.getElementById('room-passcode');
-      if (passInput) passInput.value = '';
-      const fileInput = document.getElementById('image-file-input');
-      if (fileInput) fileInput.value = '';
-      if (lightboxImg) lightboxImg.src = '';
+      if (shouldReload) {
+        const passInput = document.getElementById('room-passcode');
+        if (passInput) passInput.value = '';
+        const fileInput = document.getElementById('image-file-input');
+        if (fileInput) fileInput.value = '';
+        if (lightboxImg) lightboxImg.src = '';
+      }
 
       // 5. Purge Browser Storages (localStorage & sessionStorage)
       try { localStorage.clear(); } catch (_) {}
@@ -3014,8 +2972,12 @@
 
     window.addEventListener('DOMContentLoaded', () => {
       applyWebRTCStrategy();
-      if (serverAddressInput && window.location.host) {
-        serverAddressInput.value = window.location.host;
+      if (serverAddressInput) {
+        if (window.location.host && window.location.protocol !== 'file:') {
+          serverAddressInput.value = window.location.host;
+        } else {
+          serverAddressInput.value = 'project-moonlight-z32k.onrender.com';
+        }
       }
 
       // Detect if user just triggered a wipe
