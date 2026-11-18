@@ -1131,26 +1131,19 @@
     let remoteStream = null;
     let iceCandidateQueue = [];
 
-    // STUN + TURN ICE Server config (MiroTalk proven architecture)
-    // TURN is REQUIRED for symmetric NAT / mobile CGNAT traversal
+    // Robust STUN configuration across multiple ports (80, 443, 19302, 3478)
+    // Dynamic TURN credentials are fetched from /api/ice-servers
     let RTC_CONFIG = {
       iceServers: [
-        // Google & Cloudflare STUN
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
         { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun3.l.google.com:19302' },
+        { urls: 'stun:stun4.l.google.com:19302' },
         { urls: 'stun:stun.cloudflare.com:3478' },
-        // Metered TURN – Relays across Symmetric NAT / Indian CGNAT (Jio, Airtel, Vi)
-        {
-          urls: [
-            'turn:a.relay.metered.ca:80',
-            'turn:a.relay.metered.ca:443',
-            'turn:a.relay.metered.ca:443?transport=tcp',
-            'turns:a.relay.metered.ca:443?transport=tcp'
-          ],
-          username: 'e8dd65b92c62d3e36cafb807',
-          credential: 'uWdWNmkhvyqTEswO'
-        }
+        { urls: 'stun:relay.metered.ca:80' },
+        { urls: 'stun:relay.metered.ca:443' },
+        { urls: 'stun:openrelay.metered.ca:80' }
       ],
       bundlePolicy: 'max-bundle',
       iceCandidatePoolSize: 10
@@ -1916,6 +1909,8 @@
       // Fireship onicecandidate pattern: gather and send ICE candidates
       peerConnection.onicecandidate = (event) => {
         if (event.candidate && activeCallPeerId) {
+          const cType = event.candidate.type || (event.candidate.candidate ? event.candidate.candidate.split(' ')[7] : 'candidate');
+          console.log(`[ICE] Gathered candidate: type=${cType}`);
           sendEncryptedMessage({
             type: 'webrtc_signal',
             signal: { candidate: event.candidate.toJSON ? event.candidate.toJSON() : event.candidate }
@@ -1932,7 +1927,8 @@
         } else if (state === 'disconnected') {
           updateCallStatusDisplay('Reconnecting...');
         } else if (state === 'failed') {
-          updateCallStatusDisplay('Connection Failed (Symmetric NAT/UDP blocked)');
+          updateCallStatusDisplay('Cross-Network: Symmetric NAT (Add TURN key)');
+          appendSystemMessage('⚠️ <strong>Carrier NAT Notice:</strong> Direct peer-to-peer connection was blocked by your mobile carrier\'s Symmetric NAT. To enable calls over 4G/5G mobile data, add your free TURN key in Render (<code>METERED_API_KEY</code>).');
         }
       };
 

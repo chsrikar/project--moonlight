@@ -12,6 +12,7 @@
  */
 
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -21,6 +22,24 @@ const { WebSocketServer, WebSocket } = require('ws');
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 const ROOM_PASSCODE = process.env.ROOM_PASSCODE || 'moonlight-alpha';
+
+// Metered TURN Credentials Cache
+let cachedMeteredIceServers = null;
+let cachedMeteredFetchTime = 0;
+
+function getDefaultIceServers() {
+  return [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' },
+    { urls: 'stun:stun.cloudflare.com:3478' },
+    { urls: 'stun:relay.metered.ca:80' },
+    { urls: 'stun:relay.metered.ca:443' },
+    { urls: 'stun:openrelay.metered.ca:80' }
+  ];
+}
 
 // Pre-compute expected SHA-256 auth hash for constant-time comparison
 const EXPECTED_AUTH_HASH = crypto
@@ -61,39 +80,62 @@ const server = http.createServer((req, res) => {
   if (req.url === '/api/ice-servers') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
 
-    // Default: STUN + Metered TURN (MiroTalk verified configuration for Symmetric NAT / CGNAT)
-    let iceServers = [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' },
-      { urls: 'stun:stun.cloudflare.com:3478' },
-      {
-        urls: [
-          'turn:a.relay.metered.ca:80',
-          'turn:a.relay.metered.ca:443',
-          'turn:a.relay.metered.ca:443?transport=tcp',
-          'turns:a.relay.metered.ca:443?transport=tcp'
-        ],
-        username: 'e8dd65b92c62d3e36cafb807',
-        credential: 'uWdWNmkhvyqTEswO'
-      }
-    ];
-
-    // If operator set TURN_CONFIG (full JSON array), use that instead
+    // 1. If operator set custom TURN_CONFIG (JSON array string) in environment variables
     if (process.env.TURN_CONFIG) {
       try {
         const custom = JSON.parse(process.env.TURN_CONFIG);
-        if (Array.isArray(custom)) iceServers = custom;
+        if (Array.isArray(custom)) {
+          res.end(JSON.stringify({ iceServers: custom }));
+          return;
+        }
       } catch (_) {}
-    } else if (process.env.TURN_URLS) {
-      // If operator set TURN_URLS, append custom TURN to defaults
-      iceServers.push({
+    }
+
+    // 2. If operator set custom TURN_URLS in environment variables
+    if (process.env.TURN_URLS) {
+      const customServers = getDefaultIceServers();
+      customServers.push({
         urls: process.env.TURN_URLS.split(',').map(u => u.trim()),
         username: process.env.TURN_USERNAME || '',
         credential: process.env.TURN_CREDENTIAL || ''
       });
+      res.end(JSON.stringify({ iceServers: customServers }));
+      return;
     }
 
-    res.end(JSON.stringify({ iceServers }));
+    // 3. If operator set METERED_API_KEY in environment variables (dynamic rotating TURN credentials)
+    if (process.env.METERED_API_KEY) {
+      const now = Date.now();
+      if (cachedMeteredIceServers && (now - cachedMeteredFetchTime < 30 * 60 * 1000)) {
+        res.end(JSON.stringify({ iceServers: cachedMeteredIceServers }));
+        return;
+      }
+
+      const appName = process.env.METERED_APP || 'openrelay';
+      const apiUrl = `https://${appName}.metered.live/api/v1/turn/credentials?apiKey=${process.env.METERED_API_KEY}`;
+      https.get(apiUrl, (apiRes) => {
+        let raw = '';
+        apiRes.on('data', c => raw += c);
+        apiRes.on('end', () => {
+          try {
+            const list = JSON.parse(raw);
+            if (Array.isArray(list) && list.length > 0) {
+              cachedMeteredIceServers = list;
+              cachedMeteredFetchTime = now;
+              res.end(JSON.stringify({ iceServers: list }));
+              return;
+            }
+          } catch (_) {}
+          res.end(JSON.stringify({ iceServers: getDefaultIceServers() }));
+        });
+      }).on('error', () => {
+        res.end(JSON.stringify({ iceServers: getDefaultIceServers() }));
+      });
+      return;
+    }
+
+    // 4. Default: High-reliability multi-port STUN servers
+    res.end(JSON.stringify({ iceServers: getDefaultIceServers() }));
     return;
   }
 
