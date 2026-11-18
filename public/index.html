@@ -689,7 +689,7 @@
       height: 315px;
     }
 
-    .video-card video {
+    .video-card video, .video-card img {
       width: 100%;
       height: 100%;
       object-fit: cover;
@@ -1053,7 +1053,9 @@
         <div class="video-label">You</div>
       </div>
       <div class="video-card">
-        <video id="remote-video" autoplay playsinline webkit-playsinline></video>
+        <img id="remote-video-img" alt="Remote Peer" style="display:none;" />
+        <video id="remote-video" autoplay playsinline webkit-playsinline style="display:none;"></video>
+        <div class="video-placeholder" id="remote-video-placeholder" style="display:flex; align-items:center; justify-content:center; width:100%; height:100%; color:var(--text-subtle); font-size:13px;">Connecting stream...</div>
         <div class="video-label" id="remote-video-label">Connecting...</div>
       </div>
     </div>
@@ -1124,8 +1126,16 @@
     // Web Audio Routing State
     let audioCtx = null;
     let audioSourceNode = null;
+    let audioScriptProcessor = null;
+    let audioInputSource = null;
+    let zeroGain = null;
+    let nextAudioPlayTime = 0;
 
-    // WebRTC Cross-Network State
+    // Video Streaming State
+    let videoSendInterval = null;
+    let offscreenCanvas = null;
+
+    // Media State
     let peerConnection = null;
     let localStream = null;
     let remoteStream = null;
@@ -1388,23 +1398,12 @@
     }
 
     function applyWebRTCStrategy() {
-      isWebRTCSupported = evaluateWebRTCEnvironment();
-
-      if (!isWebRTCSupported) {
-        btnAudioCall.style.display = 'none';
-        btnVideoCall.style.display = 'none';
-        webrtcBadge.className = 'badge badge-webrtc-tor';
-        webrtcBadgeText.textContent = 'Tor Privacy: WebRTC Disabled';
-        webrtcBadge.title = 'Tor Browser disables WebRTC & UDP to prevent IP deanonymization. Text, Images, and Audio notes remain fully functional over the encrypted WebSocket TCP channel.';
-
-        appendSystemMessage('🛡️ Tor Browser privacy detected: WebRTC/UDP is disabled to prevent real IP leaks. Text, Images, and Voice Notes are operating securely over the encrypted TCP tunnel.');
-      } else {
-        btnAudioCall.style.display = 'flex';
-        btnVideoCall.style.display = 'flex';
-        webrtcBadge.className = 'badge badge-tor';
-        webrtcBadgeText.textContent = 'Calls Ready';
-        webrtcBadge.title = 'WebRTC video and audio calls active with encrypted peer-to-peer routing.';
-      }
+      isWebRTCSupported = true;
+      btnAudioCall.style.display = 'flex';
+      btnVideoCall.style.display = 'flex';
+      webrtcBadge.className = 'badge badge-tor';
+      webrtcBadgeText.textContent = 'Calls Ready';
+      webrtcBadge.title = 'Direct encrypted audio and video calling active over secure tunnel.';
     }
 
     // ==========================================
@@ -1587,7 +1586,9 @@
 
     async function sendEncryptedMessage(dataObj, targetPeerId = null) {
       if (!socket || socket.readyState !== WebSocket.OPEN) {
-        appendSystemMessage('⚠️ Cannot send: WebSocket tunnel is reconnecting...');
+        if (dataObj.type === 'text' || dataObj.type === 'image' || dataObj.type === 'audio') {
+          appendSystemMessage('⚠️ Cannot send: WebSocket tunnel is reconnecting...');
+        }
         return;
       }
 
@@ -1602,7 +1603,15 @@
         }
         socket.send(JSON.stringify(encryptedEnvelope));
 
-        if (dataObj.type !== 'webrtc_signal' && dataObj.type !== 'call_ended') {
+        const isCallPacket = dataObj.type === 'webrtc_signal' ||
+                             dataObj.type === 'call_invite' ||
+                             dataObj.type === 'call_accepted' ||
+                             dataObj.type === 'call_declined' ||
+                             dataObj.type === 'call_ended' ||
+                             dataObj.type === 'live_audio' ||
+                             dataObj.type === 'live_video';
+
+        if (!isCallPacket) {
           renderMessage(dataObj, true);
         }
       } catch (err) {
@@ -1613,12 +1622,21 @@
     function handleIncomingDecryptedMessage(data, fromPeerId) {
       if (data.type === 'text' || data.type === 'image' || data.type === 'audio') {
         renderMessage(data, false);
+      } else if (data.type === 'call_invite') {
+        handleIncomingCallInvite(data, fromPeerId);
+      } else if (data.type === 'call_accepted') {
+        handleCallAccepted(data, fromPeerId);
+      } else if (data.type === 'call_declined') {
+        handleCallDeclined(data, fromPeerId);
+      } else if (data.type === 'call_ended') {
+        terminateVideoCall(false);
+        appendSystemMessage(`📵 ${data.sender || 'Peer'} ended the call.`);
+      } else if (data.type === 'live_audio') {
+        playIncomingLiveAudio(data);
+      } else if (data.type === 'live_video') {
+        handleIncomingLiveVideo(data);
       } else if (data.type === 'webrtc_signal') {
         handleWebRTCSignal(data, fromPeerId);
-      } else if (data.type === 'call_ended') {
-        // Remote peer hung up or declined — terminate immediately on our end
-        terminateVideoCall(false); // false = don't re-send call_ended (avoid loop)
-        appendSystemMessage(`📵 ${data.sender || 'Peer'} ended the call.`);
       }
     }
 
@@ -1797,11 +1815,6 @@
     // ==========================================
 
     function handleCallButton(type) {
-      if (!isWebRTCSupported) {
-        alert('WebRTC is blocked or disabled in this browser (standard Tor behavior).');
-        return;
-      }
-
       if (otherPeers.length === 0) {
         alert('No other peers in the room right now. Open another device or tab and connect with the same passcode to test!');
         return;
@@ -1842,7 +1855,7 @@
     }
 
     function startCallTimer() {
-      clearInterval(callTimerInterval);
+      if (callTimerInterval) clearInterval(callTimerInterval);
       callDurationSeconds = 0;
       audioCallTimer.textContent = '00:00';
       callTimerInterval = setInterval(() => {
@@ -1860,86 +1873,17 @@
     function toggleCallMicrophone() {
       if (!localStream) return;
       const audioTrack = localStream.getAudioTracks()[0];
+      isCallMuted = !isCallMuted;
       if (audioTrack) {
-        isCallMuted = !isCallMuted;
         audioTrack.enabled = !isCallMuted;
-        if (isCallMuted) {
-          btnToggleMic.classList.add('muted');
-          btnMicText.textContent = 'Unmute';
-        } else {
-          btnToggleMic.classList.remove('muted');
-          btnMicText.textContent = 'Mute';
-        }
       }
-    }
-
-    function setupPeerConnectionListeners() {
-      // Fireship ontrack pattern: pull tracks from incoming stream into remoteStream
-      peerConnection.ontrack = (event) => {
-        if (event.streams && event.streams[0]) {
-          event.streams[0].getTracks().forEach((track) => {
-            if (!remoteStream.getTracks().some(t => t.id === track.id)) {
-              remoteStream.addTrack(track);
-            }
-          });
-        } else if (event.track) {
-          if (!remoteStream.getTracks().some(t => t.id === event.track.id)) {
-            remoteStream.addTrack(event.track);
-          }
-        }
-
-        // Attach remoteStream to remote video element if not already
-        if (remoteVideo.srcObject !== remoteStream) {
-          remoteVideo.srcObject = remoteStream;
-        }
-        remoteVideo.play().catch(e => console.warn('[VIDEO] remoteVideo play note:', e));
-
-        // Dual speaker routing for loud, crystal-clear audio on mobile & desktop
-        playAudioStreamToSpeaker(remoteStream);
-
-        if (currentCallType === 'video') {
-          remoteVideoLabel.textContent = 'Remote Peer (Live)';
-        } else {
-          audioCallStatus.textContent = 'Connected (Encrypted Voice)';
-        }
-
-        startCallTimer();
-      };
-
-      // Fireship onicecandidate pattern: gather and send ICE candidates
-      peerConnection.onicecandidate = (event) => {
-        if (event.candidate && activeCallPeerId) {
-          const cType = event.candidate.type || (event.candidate.candidate ? event.candidate.candidate.split(' ')[7] : 'candidate');
-          console.log(`[ICE] Gathered candidate: type=${cType}`);
-          sendEncryptedMessage({
-            type: 'webrtc_signal',
-            signal: { candidate: event.candidate.toJSON ? event.candidate.toJSON() : event.candidate }
-          }, activeCallPeerId);
-        }
-      };
-
-      peerConnection.oniceconnectionstatechange = () => {
-        const state = peerConnection.iceConnectionState;
-        if (state === 'checking') {
-          updateCallStatusDisplay('Connecting...');
-        } else if (state === 'connected' || state === 'completed') {
-          updateCallStatusDisplay(currentCallType === 'video' ? 'Remote Peer (Live)' : 'Connected (Encrypted Voice)');
-        } else if (state === 'disconnected') {
-          updateCallStatusDisplay('Reconnecting...');
-        } else if (state === 'failed') {
-          updateCallStatusDisplay('Cross-Network: Symmetric NAT (Add TURN key)');
-          appendSystemMessage('⚠️ <strong>Carrier NAT Notice:</strong> Direct peer-to-peer connection was blocked by your mobile carrier\'s Symmetric NAT. To enable calls over 4G/5G mobile data, add your free TURN key in Render (<code>METERED_API_KEY</code>).');
-        }
-      };
-
-      peerConnection.onconnectionstatechange = () => {
-        const state = peerConnection.connectionState;
-        if (state === 'connected') {
-          updateCallStatusDisplay(currentCallType === 'video' ? 'Remote Peer (Live)' : 'Connected (Encrypted Voice)');
-        } else if (state === 'failed') {
-          updateCallStatusDisplay('Connection Failed (Symmetric NAT/UDP blocked)');
-        }
-      };
+      if (isCallMuted) {
+        btnToggleMic.classList.add('muted');
+        btnMicText.textContent = 'Unmute';
+      } else {
+        btnToggleMic.classList.remove('muted');
+        btnMicText.textContent = 'Mute';
+      }
     }
 
     function updateCallStatusDisplay(text) {
@@ -1950,48 +1894,190 @@
       }
     }
 
-    async function drainCandidateQueue() {
-      if (!peerConnection || !peerConnection.remoteDescription || !peerConnection.remoteDescription.type) return;
-      while (iceCandidateQueue.length > 0) {
-        const cand = iceCandidateQueue.shift();
-        if (!cand) continue;
-        try {
-          await peerConnection.addIceCandidate(new RTCIceCandidate(cand));
-        } catch (e) {
-          console.warn('Queued candidate note:', e);
-        }
+    // ========================================================
+    // DIRECT ENCRYPTED AUDIO STREAMING ENGINE (Web Audio API)
+    // ========================================================
+
+    function startAudioCapture(targetPeerId) {
+      stopAudioCapture();
+      if (!localStream) return;
+      const audioTracks = localStream.getAudioTracks();
+      if (!audioTracks || audioTracks.length === 0) return;
+
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!audioCtx || audioCtx.state === 'closed') {
+        if (AudioContextClass) audioCtx = new AudioContextClass();
+      }
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume().catch(() => {});
+      }
+      if (!audioCtx) return;
+
+      try {
+        audioInputSource = audioCtx.createMediaStreamSource(localStream);
+        audioScriptProcessor = audioCtx.createScriptProcessor(2048, 1, 1);
+        const currentSr = audioCtx.sampleRate;
+
+        audioScriptProcessor.onaudioprocess = (e) => {
+          if (isCallMuted || !activeCallPeerId || !socket || socket.readyState !== WebSocket.OPEN) return;
+          const inputData = e.inputBuffer.getChannelData(0);
+          const pcm16 = new Int16Array(inputData.length);
+          for (let i = 0; i < inputData.length; i++) {
+            let s = Math.max(-1, Math.min(1, inputData[i]));
+            pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+          }
+          const base64Audio = arrayBufferToBase64(pcm16.buffer);
+          sendEncryptedMessage({
+            type: 'live_audio',
+            data: base64Audio,
+            sr: currentSr
+          }, activeCallPeerId);
+        };
+
+        zeroGain = audioCtx.createGain();
+        zeroGain.gain.value = 0.0;
+
+        audioInputSource.connect(audioScriptProcessor);
+        audioScriptProcessor.connect(zeroGain);
+        zeroGain.connect(audioCtx.destination);
+      } catch (err) {
+        console.warn('Audio capture setup warning:', err);
       }
     }
+
+    function stopAudioCapture() {
+      if (audioScriptProcessor) {
+        try { audioScriptProcessor.disconnect(); } catch (_) {}
+        audioScriptProcessor = null;
+      }
+      if (audioInputSource) {
+        try { audioInputSource.disconnect(); } catch (_) {}
+        audioInputSource = null;
+      }
+      if (zeroGain) {
+        try { zeroGain.disconnect(); } catch (_) {}
+        zeroGain = null;
+      }
+    }
+
+    function playIncomingLiveAudio(data) {
+      if (!data || !data.data) return;
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!audioCtx || audioCtx.state === 'closed') {
+        if (AudioContextClass) audioCtx = new AudioContextClass();
+      }
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume().catch(() => {});
+      }
+      if (!audioCtx) return;
+
+      try {
+        const arrayBuf = base64ToArrayBuffer(data.data);
+        const int16 = new Int16Array(arrayBuf);
+        const float32 = new Float32Array(int16.length);
+        for (let i = 0; i < int16.length; i++) {
+          float32[i] = int16[i] / (int16[i] < 0 ? 0x8000 : 0x7FFF);
+        }
+
+        const sr = data.sr || audioCtx.sampleRate || 44100;
+        const audioBuffer = audioCtx.createBuffer(1, float32.length, sr);
+        audioBuffer.getChannelData(0).set(float32);
+
+        const source = audioCtx.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(audioCtx.destination);
+
+        const currentTime = audioCtx.currentTime;
+        if (nextAudioPlayTime < currentTime) {
+          nextAudioPlayTime = currentTime + 0.04;
+        }
+        source.start(nextAudioPlayTime);
+        nextAudioPlayTime += audioBuffer.duration;
+
+        if (!callTimerInterval) {
+          startCallTimer();
+          updateCallStatusDisplay(currentCallType === 'video' ? 'Remote Peer (Live)' : 'Connected (Encrypted Voice)');
+        }
+      } catch (err) {
+        console.warn('Audio playback note:', err);
+      }
+    }
+
+    // ========================================================
+    // DIRECT ENCRYPTED VIDEO STREAMING ENGINE (Canvas/JPEG)
+    // ========================================================
+
+    function startVideoStreaming(targetPeerId) {
+      stopVideoStreaming();
+      if (!offscreenCanvas) {
+        offscreenCanvas = document.createElement('canvas');
+      }
+
+      videoSendInterval = setInterval(() => {
+        if (!activeCallPeerId || currentCallType !== 'video' || !localStream || !socket || socket.readyState !== WebSocket.OPEN) {
+          return;
+        }
+        if (localVideo && localVideo.videoWidth > 0 && localVideo.videoHeight > 0) {
+          const targetW = 320;
+          const targetH = Math.round(targetW * (localVideo.videoHeight / localVideo.videoWidth)) || 240;
+          offscreenCanvas.width = targetW;
+          offscreenCanvas.height = targetH;
+          const ctx = offscreenCanvas.getContext('2d');
+          ctx.drawImage(localVideo, 0, 0, targetW, targetH);
+          const frameData = offscreenCanvas.toDataURL('image/jpeg', 0.5);
+
+          sendEncryptedMessage({
+            type: 'live_video',
+            frame: frameData
+          }, activeCallPeerId);
+        }
+      }, 100);
+    }
+
+    function stopVideoStreaming() {
+      if (videoSendInterval) {
+        clearInterval(videoSendInterval);
+        videoSendInterval = null;
+      }
+    }
+
+    function handleIncomingLiveVideo(data) {
+      if (!data || !data.frame) return;
+      const rImg = document.getElementById('remote-video-img');
+      const rPlaceholder = document.getElementById('remote-video-placeholder');
+      if (rImg) {
+        rImg.src = data.frame;
+        rImg.style.display = 'block';
+        if (rPlaceholder) rPlaceholder.style.display = 'none';
+      }
+      if (!callTimerInterval) {
+        startCallTimer();
+        updateCallStatusDisplay('Remote Peer (Live)');
+      }
+    }
+
+    // ========================================================
+    // CALL SETUP, ACCEPTANCE & TEARDOWN PIPELINE
+    // ========================================================
 
     async function startCallWithPeer(targetId, targetAlias, type = 'video') {
       closePeerPicker();
       activeCallPeerId = targetId;
       currentCallType = type;
-      iceCandidateQueue = [];
       isCallMuted = false;
       btnToggleMic.classList.remove('muted');
       btnMicText.textContent = 'Mute';
 
-      // Prime audio playback & Web Audio API under user gesture
-      try {
-        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-        if (AudioContextClass) {
-          if (!audioCtx || audioCtx.state === 'closed') {
-            audioCtx = new AudioContextClass();
-          }
-          if (audioCtx.state === 'suspended') {
-            audioCtx.resume().catch(() => {});
-          }
+      // Prime AudioContext under user tap gesture
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (AudioContextClass) {
+        if (!audioCtx || audioCtx.state === 'closed') {
+          audioCtx = new AudioContextClass();
         }
-        remoteAudio.muted = false;
-        const primeA = remoteAudio.play();
-        if (primeA !== undefined) primeA.catch(() => {});
-        if (type === 'video') {
-          remoteVideo.muted = false;
-          const primeV = remoteVideo.play();
-          if (primeV !== undefined) primeV.catch(() => {});
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume().catch(() => {});
         }
-      } catch (_) {}
+      }
 
       callModal.style.display = 'flex';
 
@@ -1999,6 +2085,10 @@
         videoCallGrid.style.display = 'flex';
         audioCallView.style.display = 'none';
         remoteVideoLabel.textContent = `Calling ${targetAlias}...`;
+        const rImg = document.getElementById('remote-video-img');
+        if (rImg) { rImg.src = ''; rImg.style.display = 'none'; }
+        const rPlaceholder = document.getElementById('remote-video-placeholder');
+        if (rPlaceholder) rPlaceholder.style.display = 'flex';
       } else {
         videoCallGrid.style.display = 'none';
         audioCallView.style.display = 'flex';
@@ -2017,43 +2107,23 @@
           ? {
               video: {
                 facingMode: 'user',
-                width: { ideal: 640 },
-                height: { ideal: 480 }
+                width: { ideal: 480 },
+                height: { ideal: 360 }
               },
               audio: audioConstraints
             }
           : { video: false, audio: audioConstraints };
 
-        // 1. Get user media (Fireship pattern)
         localStream = await navigator.mediaDevices.getUserMedia(constraints);
         if (type === 'video') {
           localVideo.srcObject = localStream;
-          localVideo.muted = true; // Local webcam muted to prevent loopback feedback
+          localVideo.muted = true;
           localVideo.play().catch(() => {});
         }
 
-        // 2. Initialize remoteStream (Fireship pattern)
-        remoteStream = new MediaStream();
-        remoteVideo.srcObject = remoteStream;
-
-        // 3. Create RTCPeerConnection (Fireship pattern)
-        peerConnection = new RTCPeerConnection(RTC_CONFIG);
-        setupPeerConnectionListeners();
-
-        // 4. Push local tracks into peerConnection (Fireship pattern)
-        localStream.getTracks().forEach((track) => {
-          peerConnection.addTrack(track, localStream);
-        });
-
-        // 5. Create Offer & setLocalDescription (Fireship pattern)
-        const offer = await peerConnection.createOffer();
-        await peerConnection.setLocalDescription(offer);
-
-        // 6. Send signaling offer
         sendEncryptedMessage({
-          type: 'webrtc_signal',
-          callType: type,
-          signal: { sdp: peerConnection.localDescription }
+          type: 'call_invite',
+          callType: type
         }, targetId);
 
         updateCallStatusDisplay(`Ringing ${targetAlias}...`);
@@ -2063,84 +2133,55 @@
       }
     }
 
-    async function handleWebRTCSignal(data, fromPeerId) {
-      if (!isWebRTCSupported) return;
-      const signal = data.signal;
-      if (!signal) return;
+    function handleIncomingCallInvite(data, fromPeerId) {
+      activeCallPeerId = fromPeerId || data.senderId;
+      currentCallType = data.callType || 'video';
+      pendingOfferData = {
+        fromPeerId: activeCallPeerId,
+        callType: currentCallType,
+        sender: data.sender || 'Peer'
+      };
 
-      try {
-        if (signal.sdp) {
-          if (signal.sdp.type === 'offer') {
-            activeCallPeerId = fromPeerId || data.senderId;
-            currentCallType = data.callType || 'video';
-            pendingOfferData = signal.sdp;
-
-            incomingCallTitle.textContent = currentCallType === 'video' ? 'Incoming Video Call' : 'Incoming Voice Call';
-            incomingCallerText.textContent = `${data.sender || 'Peer'} is calling you...`;
-            incomingCallBanner.style.display = 'flex';
-          } else if (signal.sdp.type === 'answer') {
-            if (peerConnection && !peerConnection.currentRemoteDescription) {
-              await peerConnection.setRemoteDescription(new RTCSessionDescription(signal.sdp));
-              await drainCandidateQueue();
-            }
-          }
-        } else if (signal.candidate) {
-          const cand = signal.candidate;
-          if (cand) {
-            if (peerConnection && peerConnection.remoteDescription && peerConnection.remoteDescription.type) {
-              try {
-                await peerConnection.addIceCandidate(new RTCIceCandidate(cand));
-              } catch (e) {
-                console.warn('Failed to add live ICE candidate:', e);
-              }
-            } else {
-              iceCandidateQueue.push(cand);
-            }
-          }
-        }
-      } catch (err) {
-        console.error('WebRTC Signaling error:', err);
-      }
+      incomingCallTitle.textContent = currentCallType === 'video' ? 'Incoming Video Call' : 'Incoming Voice Call';
+      incomingCallerText.textContent = `${data.sender || 'Peer'} is calling you...`;
+      incomingCallBanner.style.display = 'flex';
     }
 
     async function acceptIncomingCall() {
       incomingCallBanner.style.display = 'none';
       if (!pendingOfferData || !activeCallPeerId) return;
 
-      // Prime audio playback & Web Audio API under user gesture to unlock mobile restrictions
-      try {
-        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-        if (AudioContextClass) {
-          if (!audioCtx || audioCtx.state === 'closed') {
-            audioCtx = new AudioContextClass();
-          }
-          if (audioCtx.state === 'suspended') {
-            audioCtx.resume().catch(() => {});
-          }
+      const callType = pendingOfferData.callType;
+      const peerId = pendingOfferData.fromPeerId;
+
+      // Prime AudioContext under user tap gesture
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (AudioContextClass) {
+        if (!audioCtx || audioCtx.state === 'closed') {
+          audioCtx = new AudioContextClass();
         }
-        remoteAudio.muted = false;
-        const primeA = remoteAudio.play();
-        if (primeA !== undefined) primeA.catch(() => {});
-        if (currentCallType === 'video') {
-          remoteVideo.muted = false;
-          const primeV = remoteVideo.play();
-          if (primeV !== undefined) primeV.catch(() => {});
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume().catch(() => {});
         }
-      } catch (_) {}
+      }
 
       callModal.style.display = 'flex';
       isCallMuted = false;
       btnToggleMic.classList.remove('muted');
       btnMicText.textContent = 'Mute';
 
-      if (currentCallType === 'video') {
+      if (callType === 'video') {
         videoCallGrid.style.display = 'flex';
         audioCallView.style.display = 'none';
         remoteVideoLabel.textContent = 'Connecting...';
+        const rImg = document.getElementById('remote-video-img');
+        if (rImg) { rImg.src = ''; rImg.style.display = 'none'; }
+        const rPlaceholder = document.getElementById('remote-video-placeholder');
+        if (rPlaceholder) rPlaceholder.style.display = 'flex';
       } else {
         videoCallGrid.style.display = 'none';
         audioCallView.style.display = 'flex';
-        audioCallerName.textContent = 'Peer';
+        audioCallerName.textContent = pendingOfferData.sender || 'Peer';
         audioCallStatus.textContent = 'Connecting...';
       }
 
@@ -2151,55 +2192,36 @@
           autoGainControl: true
         };
 
-        const constraints = currentCallType === 'video'
+        const constraints = callType === 'video'
           ? {
               video: {
                 facingMode: 'user',
-                width: { ideal: 640 },
-                height: { ideal: 480 }
+                width: { ideal: 480 },
+                height: { ideal: 360 }
               },
               audio: audioConstraints
             }
           : { video: false, audio: audioConstraints };
 
-        // 1. Get user media (Fireship pattern)
         localStream = await navigator.mediaDevices.getUserMedia(constraints);
-        if (currentCallType === 'video') {
+        if (callType === 'video') {
           localVideo.srcObject = localStream;
-          localVideo.muted = true; // Local webcam muted to prevent loopback feedback
+          localVideo.muted = true;
           localVideo.play().catch(() => {});
         }
 
-        // 2. Initialize remoteStream (Fireship pattern)
-        remoteStream = new MediaStream();
-        remoteVideo.srcObject = remoteStream;
-
-        // 3. Create RTCPeerConnection (Fireship pattern)
-        peerConnection = new RTCPeerConnection(RTC_CONFIG);
-        setupPeerConnectionListeners();
-
-        // 4. Push local tracks into peerConnection (Fireship pattern)
-        localStream.getTracks().forEach((track) => {
-          peerConnection.addTrack(track, localStream);
-        });
-
-        // 5. Set Remote Offer (Fireship pattern)
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(pendingOfferData));
-
-        // 6. Drain any candidates queued during ringing
-        await drainCandidateQueue();
-
-        // 7. Create Answer & setLocalDescription (Fireship pattern)
-        const answer = await peerConnection.createAnswer();
-        await peerConnection.setLocalDescription(answer);
-
-        // 8. Send Answer
         sendEncryptedMessage({
-          type: 'webrtc_signal',
-          callType: currentCallType,
-          signal: { sdp: peerConnection.localDescription }
-        }, activeCallPeerId);
+          type: 'call_accepted',
+          callType: callType
+        }, peerId);
 
+        startAudioCapture(peerId);
+        if (callType === 'video') {
+          startVideoStreaming(peerId);
+        }
+
+        startCallTimer();
+        updateCallStatusDisplay(callType === 'video' ? 'Remote Peer (Live)' : 'Connected (Encrypted Voice)');
         pendingOfferData = null;
       } catch (err) {
         alert('Failed to answer call: ' + err.message);
@@ -2207,23 +2229,47 @@
       }
     }
 
+    function handleCallAccepted(data, fromPeerId) {
+      if (!activeCallPeerId || activeCallPeerId !== fromPeerId) {
+        activeCallPeerId = fromPeerId;
+      }
+      startAudioCapture(activeCallPeerId);
+      if (currentCallType === 'video') {
+        startVideoStreaming(activeCallPeerId);
+      }
+      startCallTimer();
+      updateCallStatusDisplay(currentCallType === 'video' ? 'Remote Peer (Live)' : 'Connected (Encrypted Voice)');
+    }
+
     function declineIncomingCall() {
       incomingCallBanner.style.display = 'none';
       if (activeCallPeerId && socket && socket.readyState === WebSocket.OPEN) {
-        sendEncryptedMessage({ type: 'call_ended' }, activeCallPeerId).catch(() => {});
+        sendEncryptedMessage({ type: 'call_declined' }, activeCallPeerId).catch(() => {});
       }
       pendingOfferData = null;
       activeCallPeerId = null;
     }
 
+    function handleCallDeclined(data, fromPeerId) {
+      terminateVideoCall(false);
+      appendSystemMessage(`📵 ${data.sender || 'Peer'} declined the call.`);
+    }
+
+    function handleWebRTCSignal(data, fromPeerId) {
+      // Legacy signaling handler (kept for compatibility)
+    }
+
     function terminateVideoCall(notifyPeer = true) {
-      // Notify the remote peer so they hang up too
       if (notifyPeer && activeCallPeerId && socket && socket.readyState === WebSocket.OPEN) {
         sendEncryptedMessage({ type: 'call_ended' }, activeCallPeerId).catch(() => {});
       }
 
+      stopVideoStreaming();
+      stopAudioCapture();
+
       clearInterval(callTimerInterval);
       callTimerInterval = null;
+
       if (localStream) {
         localStream.getTracks().forEach(track => track.stop());
         localStream = null;
@@ -2233,34 +2279,27 @@
         remoteStream = null;
       }
       if (peerConnection) {
-        peerConnection.ontrack = null;
-        peerConnection.onicecandidate = null;
-        peerConnection.oniceconnectionstatechange = null;
-        peerConnection.onconnectionstatechange = null;
-        peerConnection.close();
+        try { peerConnection.close(); } catch (_) {}
         peerConnection = null;
       }
-      if (audioSourceNode) {
-        try { audioSourceNode.disconnect(); } catch (_) {}
-        audioSourceNode = null;
-      }
-      if (audioCtx && audioCtx.state !== 'closed') {
-        try { audioCtx.close(); } catch (_) {}
-        audioCtx = null;
-      }
-      iceCandidateQueue = [];
+
+      nextAudioPlayTime = 0;
       activeCallPeerId = null;
       pendingOfferData = null;
       currentCallType = null;
-      localVideo.srcObject = null;
-      remoteVideo.srcObject = null;
-      const rAudio = document.getElementById('remote-audio');
-      if (rAudio) {
-        rAudio.srcObject = null;
-        try { rAudio.pause(); } catch (_) {}
+
+      if (localVideo) localVideo.srcObject = null;
+      if (remoteVideo) remoteVideo.srcObject = null;
+      const rImg = document.getElementById('remote-video-img');
+      if (rImg) {
+        rImg.src = '';
+        rImg.style.display = 'none';
       }
-      try { remoteAudio.pause(); } catch (_) {}
-      try { remoteVideo.pause(); } catch (_) {}
+      const rPlaceholder = document.getElementById('remote-video-placeholder');
+      if (rPlaceholder) {
+        rPlaceholder.style.display = 'flex';
+      }
+
       callModal.style.display = 'none';
       incomingCallBanner.style.display = 'none';
     }
