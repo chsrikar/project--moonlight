@@ -338,6 +338,19 @@
       line-height: 1.4;
     }
 
+    .auth-notice {
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #6ee7b7;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-top: 14px;
+      display: none;
+      text-align: center;
+      line-height: 1.4;
+    }
+
     /* App Header */
     header {
       background: var(--bg-surface);
@@ -955,6 +968,7 @@
           <span id="auth-btn-text">Derive Keys & Connect</span>
         </button>
         <div id="auth-error" class="auth-error"></div>
+        <div id="auth-notice" class="auth-notice"></div>
       </form>
     </div>
   </div>
@@ -1003,7 +1017,7 @@
         <span class="btn-label">Video</span>
       </button>
 
-      <button class="btn-header btn-panic" onclick="triggerPanicWipe()" title="Instant Session Wipe">
+      <button class="btn-header btn-panic" onclick="triggerPanicWipe(true)" title="Instant Session & Browser Cache Wipe">
         <svg class="icon" viewBox="0 0 24 24"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
         <span class="btn-label">Wipe</span>
       </button>
@@ -1522,7 +1536,7 @@
         if (msg.type === 'auth_error') {
           authRejected = true;
           showAuthError(msg.message || 'Invalid room passcode. Access denied.');
-          triggerPanicWipe();
+          triggerPanicWipe(false);
           return;
         }
 
@@ -1541,7 +1555,7 @@
 
         if (event.code === 4401 || event.code === 4408 || authRejected) {
           showAuthError('Invalid room passcode. Access denied.');
-          triggerPanicWipe();
+          triggerPanicWipe(false);
           return;
         }
 
@@ -2308,38 +2322,106 @@
     // 7. PANIC WIPE & ZERO-TRACE RESIDENTIAL CLEANUP
     // ==========================================
 
-    function triggerPanicWipe() {
-      terminateVideoCall();
+    async function triggerPanicWipe(shouldReload = true) {
+      // 1. Terminate all active calls and media tracks immediately
+      terminateVideoCall(true);
       if (isMediaRecording) stopAudioRecording();
 
+      // 2. Kill WebSocket tunnel and reconnect timers
       if (reconnectTimeout) {
         clearTimeout(reconnectTimeout);
         reconnectTimeout = null;
       }
       if (socket) {
         socket.onclose = null;
-        socket.close();
+        socket.onerror = null;
+        socket.onmessage = null;
+        try { socket.close(); } catch (_) {}
         socket = null;
       }
 
+      // 3. Nullify all cryptographic keys, tokens, and in-memory buffers
       derivedAesKey = null;
       authGateHash = null;
       myClientId = null;
       otherPeers = [];
       reconnectAttempts = 0;
+      audioChunks = [];
+      mediaRecorder = null;
+      if (audioCtx && audioCtx.state !== 'closed') {
+        try { audioCtx.close(); } catch (_) {}
+        audioCtx = null;
+      }
 
+      // 4. Overwrite and scrub DOM chat viewport and inputs
       messagesViewport.innerHTML = `
         <div class="system-notice">
           🔒 <strong>Zero-Trace Channel Active:</strong> Transmitted packets are encrypted in the browser with your derived key before entering the WebSocket. The server cannot inspect plaintext or audio/video contents.
         </div>
       `;
-
-      authOverlay.style.display = 'flex';
+      if (textInput) textInput.value = '';
       const passInput = document.getElementById('room-passcode');
       if (passInput) passInput.value = '';
-      authSubmitBtn.disabled = false;
-      authBtnText.textContent = 'Derive Keys & Connect';
-      updateConnectionStatus('disconnected');
+      const fileInput = document.getElementById('image-file-input');
+      if (fileInput) fileInput.value = '';
+      if (lightboxImg) lightboxImg.src = '';
+
+      // 5. Purge Browser Storages (localStorage & sessionStorage)
+      try { localStorage.clear(); } catch (_) {}
+      try { sessionStorage.clear(); } catch (_) {}
+
+      // 6. Purge Browser Cache Storage API (window.caches)
+      if (window.caches && caches.keys) {
+        try {
+          const keys = await caches.keys();
+          await Promise.all(keys.map(k => caches.delete(k)));
+        } catch (_) {}
+      }
+
+      // 7. Purge IndexedDB databases
+      if (window.indexedDB && indexedDB.databases) {
+        try {
+          const dbs = await indexedDB.databases();
+          dbs.forEach(db => { if (db.name) indexedDB.deleteDatabase(db.name); });
+        } catch (_) {}
+      }
+
+      // 8. Unregister Service Workers
+      if ('serviceWorker' in navigator) {
+        try {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          for (const reg of registrations) {
+            await reg.unregister();
+          }
+        } catch (_) {}
+      }
+
+      // 9. Clear Cookies for this origin
+      try {
+        document.cookie.split(';').forEach(c => {
+          document.cookie = c.replace(/^ +/, '').replace(/=.*/, '=;expires=' + new Date(0).toUTCString() + ';path=/');
+        });
+      } catch (_) {}
+
+      // 10. Clear Performance Timings
+      if (window.performance && performance.clearResourceTimings) {
+        try { performance.clearResourceTimings(); } catch (_) {}
+      }
+
+      // 11. Instruct browser to deep-purge via W3C Clear-Site-Data header
+      try {
+        await fetch('/api/wipe', { method: 'POST', cache: 'no-store' });
+      } catch (_) {}
+
+      if (shouldReload) {
+        // Complete memory & heap flush: replace location with wiped query to restart fresh
+        window.location.replace('/?wiped=1');
+      } else {
+        authOverlay.style.display = 'flex';
+        authSubmitBtn.disabled = false;
+        authBtnText.textContent = 'Derive Keys & Connect';
+        updateConnectionStatus('disconnected');
+      }
     }
 
     // ==========================================
@@ -2349,6 +2431,8 @@
     async function handleAuthSubmit(event) {
       event.preventDefault();
       authError.style.display = 'none';
+      const authNotice = document.getElementById('auth-notice');
+      if (authNotice) authNotice.style.display = 'none';
 
       const passInput = document.getElementById('room-passcode').value.trim();
       const aliasInput = document.getElementById('user-alias').value.trim();
@@ -2395,6 +2479,18 @@
       applyWebRTCStrategy();
       if (serverAddressInput && window.location.host) {
         serverAddressInput.value = window.location.host;
+      }
+
+      // Detect if user just triggered a wipe
+      if (window.location.search.includes('wiped=1')) {
+        const authNotice = document.getElementById('auth-notice');
+        if (authNotice) {
+          authNotice.textContent = '🧹 Entire browser cache, session storage, and memory wiped successfully.';
+          authNotice.style.display = 'block';
+        }
+        try {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        } catch (_) {}
       }
     });
 

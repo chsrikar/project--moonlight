@@ -76,6 +76,14 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // Wipe endpoint: Instructs browser engine to purge entire cache and storage via W3C Clear-Site-Data
+  if (req.url === '/api/wipe' && (req.method === 'POST' || req.method === 'GET')) {
+    res.setHeader('Clear-Site-Data', '"cache", "cookies", "storage"');
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ wiped: true, timestamp: Date.now() }));
+    return;
+  }
+
   // Robust STUN/TURN server configuration endpoint for WebRTC cross-network traversal
   if (req.url === '/api/ice-servers') {
     res.writeHead(200, { 'Content-Type': 'application/json' });

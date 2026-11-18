@@ -251,6 +251,19 @@ async function runTests() {
     }).on('error', reject);
   });
 
+  // Test 6: Verify /api/wipe endpoint and Clear-Site-Data header
+  console.log('\n[Test 6] Verifying Cache Wipe Endpoint & Clear-Site-Data Header (/api/wipe)...');
+  await new Promise((resolve, reject) => {
+    http.get(`http://localhost:${PORT}/api/wipe`, (res) => {
+      const clearSiteData = res.headers['clear-site-data'];
+      if (!clearSiteData || !clearSiteData.includes('cache') || !clearSiteData.includes('storage')) {
+        return reject(new Error('Missing or invalid Clear-Site-Data header: ' + clearSiteData));
+      }
+      console.log('  ✔ /api/wipe returned Clear-Site-Data: ' + clearSiteData);
+      resolve();
+    }).on('error', reject);
+  });
+
   console.log('\n✔ ALL TESTS PASSED SUCCESSFULLY!\n');
   process.exit(0);
 }
